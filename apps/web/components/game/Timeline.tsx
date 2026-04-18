@@ -22,31 +22,51 @@ export function Timeline({
       ? 0
       : Math.max(0, maxPlayerActionsPerRound - playerActionsUsed);
   const phaseLabel =
-    phase === 'event_modal' ? 'event — acknowledge' : phase === 'game_over' ? 'game over' : phase;
+    phase === 'event_modal' ? 'EVENT' : phase === 'game_over' ? 'GAME OVER' : 'PLAYER';
+  const phasePillClass =
+    phase === 'player'
+      ? 'border-yellow-500 bg-yellow-400 text-black'
+      : phase === 'event_modal'
+        ? 'border-amber-400 bg-amber-100 text-amber-950'
+        : 'border-stone-300 bg-stone-200 text-stone-800';
+
   return (
-    <div className="panel timeline">
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+    <header className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2>All According to Plan</h2>
-          <div className="muted">Round-based campaign pacing</div>
+          <h1 className="text-xl font-black uppercase tracking-tight text-board-ink md:text-2xl">
+            All According to Plan
+          </h1>
+          <p className="mt-1 text-sm text-stone-600">Round-based campaign pacing</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span className="pill">Phase {phaseLabel}</span>
-          <span className="pill">
-            Round <strong>{activeRound}</strong> / {maxRounds}
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${phasePillClass}`}
+          >
+            Phase: {phaseLabel}
           </span>
-          <span className="pill">
-            Player actions <strong>{actionsLeft}</strong> / {maxPlayerActionsPerRound}
+          <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-stone-800">
+            Round {activeRound} / {maxRounds}
+          </span>
+          <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-stone-800">
+            Actions {actionsLeft} / {maxPlayerActionsPerRound}
           </span>
         </div>
       </div>
-      <div className="timeline-years">
+      <div className="mt-4 flex gap-1 overflow-x-auto pb-1">
         {rounds.map((r) => (
-          <div key={r} className={`year-node ${r === activeRound ? 'active' : ''}`}>
+          <div
+            key={r}
+            className={`flex h-9 min-w-[2.25rem] shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+              r === activeRound
+                ? 'bg-yellow-400 text-black shadow-sm ring-2 ring-yellow-500/40'
+                : 'border border-stone-200 bg-stone-50 text-stone-500'
+            }`}
+          >
             {r}
           </div>
         ))}
       </div>
-    </div>
+    </header>
   );
 }

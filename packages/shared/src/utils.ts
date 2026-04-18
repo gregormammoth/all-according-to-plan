@@ -1,5 +1,6 @@
 import { GROUP_KEYS, MAX_HAND_CARDS, STAT_MAX, STAT_MIN } from './constants';
 import type {
+  Card,
   CardCost,
   CardEffects,
   DeckState,
@@ -119,6 +120,40 @@ export function formatCardEffectsLine(effects: CardEffects): string {
     if (line) parts.push(`${labels[key]}: ${line}`);
   }
   return parts.length ? parts.join(' | ') : 'Effects: —';
+}
+
+function appendFactionStatBullets(factionName: string, block: FactionStatBlock, out: string[]) {
+  const pairs: [keyof FactionStatBlock, string][] = [
+    ['satisfaction', 'satisfaction'],
+    ['loyalty', 'loyalty'],
+    ['fear', 'fear'],
+  ];
+  for (const [key, label] of pairs) {
+    const v = block[key];
+    if (v !== 0 && v !== undefined && v !== null) {
+      const sign = v > 0 ? '+' : '';
+      out.push(`• ${factionName} ${sign}${v} ${label}`);
+    }
+  }
+}
+
+export function describeCardEffectBullets(card: Card): string[] {
+  const labels: Record<GroupKey, string> = {
+    people: 'People',
+    elites: 'Elites',
+    security: 'Security',
+  };
+  const out: string[] = [];
+  for (const key of GROUP_KEYS) {
+    appendFactionStatBullets(labels[key], card.effects[key], out);
+  }
+  if (card.gain) {
+    const g = card.gain;
+    if (g.money) out.push(`• Treasury ${g.money > 0 ? '+' : ''}${g.money} money`);
+    if (g.influence) out.push(`• Influence ${g.influence > 0 ? '+' : ''}${g.influence}`);
+    if (g.authority) out.push(`• Authority ${g.authority > 0 ? '+' : ''}${g.authority}`);
+  }
+  return out.length ? out : ['• See card description for impact'];
 }
 
 export function describeGameEventEffectLines(ev: GameEvent): string[] {

@@ -34,12 +34,6 @@ export function CastleScene() {
     dir.castShadow = true;
     scene.add(dir);
 
-    // Pastel castle materials
-    const stone = new THREE.MeshStandardMaterial({
-      color: '#a7c7e7',  // pastel blue
-      roughness: 0.56,
-      metalness: 0.18,
-    });
     const towerAccent = new THREE.MeshStandardMaterial({
       color: '#e7a7c7', // pastel pink
       roughness: 0.39,
@@ -170,5 +164,5 @@ export function CastleScene() {
     };
   }, []);
 
-  return <div ref={ref} style={{ width: '100%', height: '100%' }} />;
+  return <div ref={ref} className="h-full w-full" />;
 }

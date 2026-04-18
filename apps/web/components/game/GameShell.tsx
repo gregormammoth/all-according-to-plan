@@ -1,6 +1,7 @@
 'use client';
 
 import { CardBar } from '@/components/game/CardBar';
+import { EventModal } from '@/components/game/EventModal';
 import { CrisisPanel } from '@/components/game/CrisisPanel';
 import { PlayedCards } from '@/components/game/PlayedCards';
 import { Timeline } from '@/components/game/Timeline';
@@ -17,6 +18,7 @@ export function GameShell() {
 
   return (
     <div className="shell">
+      <EventModal />
       <Timeline
         round={round}
         maxRounds={maxRounds}

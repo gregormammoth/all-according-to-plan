@@ -40,6 +40,7 @@ export function createInitialState(cards?: Card[]): GameState {
     maxPlayerActionsPerRound: PLAYER_ACTIONS_PER_ROUND,
     playerActionsUsed: 0,
     phase: 'player',
+    pendingEvent: null,
     stats: defaultStats(),
     resources: defaultResources(),
     hand: drawn.hand,

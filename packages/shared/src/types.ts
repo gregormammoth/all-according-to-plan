@@ -52,9 +52,14 @@ export type GameEvent = {
   effects: CardEffects;
   resources?: Partial<Resources>;
   round?: number;
+  condition?: string;
+  outcomePreview?: {
+    success: string;
+    failure: string;
+  };
 };
 
-export type GamePhase = 'player' | 'game_over';
+export type GamePhase = 'player' | 'event_modal' | 'game_over';
 
 export type ScheduledEffect = {
   firesAtRound: number;
@@ -67,6 +72,7 @@ export type GameState = {
   maxPlayerActionsPerRound: number;
   playerActionsUsed: number;
   phase: GamePhase;
+  pendingEvent: GameEvent | null;
   stats: PlayerStats;
   resources: Resources;
   hand: string[];

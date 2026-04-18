@@ -4,6 +4,7 @@ import type {
   CardEffects,
   DeckState,
   FactionStatBlock,
+  GameEvent,
   GroupKey,
   GroupStats,
   HandState,
@@ -118,6 +119,30 @@ export function formatCardEffectsLine(effects: CardEffects): string {
     if (line) parts.push(`${labels[key]}: ${line}`);
   }
   return parts.length ? parts.join(' | ') : 'Effects: —';
+}
+
+export function describeGameEventEffectLines(ev: GameEvent): string[] {
+  const labels: Record<GroupKey, string> = {
+    people: 'People',
+    elites: 'Elites',
+    security: 'Security',
+  };
+  const lines: string[] = [];
+  for (const key of GROUP_KEYS) {
+    const line = formatStatDelta(ev.effects[key]);
+    if (line) lines.push(`${labels[key]}: ${line}`);
+  }
+  if (ev.resources) {
+    const bits: string[] = [];
+    if (ev.resources.money) bits.push(`money ${ev.resources.money > 0 ? '+' : ''}${ev.resources.money}`);
+    if (ev.resources.influence)
+      bits.push(`influence ${ev.resources.influence > 0 ? '+' : ''}${ev.resources.influence}`);
+    if (ev.resources.authority)
+      bits.push(`authority ${ev.resources.authority > 0 ? '+' : ''}${ev.resources.authority}`);
+    if (bits.length) lines.push(`Resources: ${bits.join(', ')}`);
+  }
+  if (lines.length === 0) lines.push('No mechanical changes.');
+  return lines;
 }
 
 export function calculateStabilityIndex(stats: PlayerStats): number {

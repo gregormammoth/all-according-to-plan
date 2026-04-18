@@ -13,7 +13,10 @@ export function CardBar() {
   const draw = useGameStore((s) => s.draw);
   const gain = useGameStore((s) => s.gain);
   const actionsRemaining =
-    state.phase === 'game_over' ? 0 : Math.max(0, state.maxPlayerActionsPerRound - state.playerActionsUsed);
+    state.phase === 'game_over' || state.phase === 'event_modal'
+      ? 0
+      : Math.max(0, state.maxPlayerActionsPerRound - state.playerActionsUsed);
+  const eventModalOpen = state.phase === 'event_modal';
 
   return (
     <div className="panel bottom">
@@ -28,10 +31,11 @@ export function CardBar() {
         }}
       >
         <div>
-          <h3>Player phase</h3>
+          <h3>{eventModalOpen ? 'Event phase' : 'Player phase'}</h3>
           <div className="muted" style={{ marginTop: 4 }}>
-            Spend exactly {state.maxPlayerActionsPerRound} actions, then upkeep runs: bonus draw, +1 money, event,
-            next round.
+            {eventModalOpen
+              ? 'Resolve the event in the modal. After you continue, upkeep applies the event, then bonus draw, +1 money, and the next round.'
+              : `Spend exactly ${state.maxPlayerActionsPerRound} actions, then an event opens. After you acknowledge it, upkeep runs: event resolution, bonus draw, +1 money, next round.`}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, minWidth: 200 }}>

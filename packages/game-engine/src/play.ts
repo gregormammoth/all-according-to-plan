@@ -10,7 +10,7 @@ import {
 } from '@all-according-to-plan/shared';
 import type { CardLibrary } from './library';
 import { drawOneCard } from './deck';
-import { endRound } from './round';
+import { beginEventModal } from './round';
 import { MAX_HAND_CARDS } from './state';
 
 export type PlayResult =
@@ -19,7 +19,7 @@ export type PlayResult =
 
 function afterPlayerAction(state: GameState): GameState {
   if (state.playerActionsUsed >= state.maxPlayerActionsPerRound) {
-    return endRound(state);
+    return beginEventModal(state);
   }
   return state;
 }

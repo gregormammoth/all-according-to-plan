@@ -16,6 +16,8 @@ export function AdvisorPanel() {
   const state = useGameStore((s) => s.state);
   const reset = useGameStore((s) => s.reset);
   const stability = calculateStabilityIndex(state.stats);
+  const phaseLabel =
+    state.phase === 'event_modal' ? 'event (modal)' : state.phase === 'game_over' ? 'game over' : state.phase;
 
   return (
     <div className="panel">
@@ -31,7 +33,7 @@ export function AdvisorPanel() {
         </button>
       </div>
       <div className="muted" style={{ marginBottom: 10 }}>
-        Stability index {stability} · Round {state.round} · Phase {state.phase}
+        Stability index {stability} · Round {state.round} · Phase {phaseLabel}
       </div>
       <div className="stat-grid">
         <div>

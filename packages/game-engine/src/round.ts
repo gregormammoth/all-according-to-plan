@@ -14,21 +14,32 @@ import { applyInstabilityDrift } from './decay';
 const MOCK_EVENTS: GameEvent[] = [
   {
     id: 'mock_event_1',
-    title: 'Event 1',
-    description: 'Rations tighten. Security forces requisition stores while ministries blame foreign sabotage.',
-    severity: 'medium',
+    title: 'Riot in Capital',
+    description:
+      'Public unrest has erupted due to instability. Ministries scramble to assign blame while security cordons key districts.',
+    severity: 'high',
+    condition: 'Triggers when satisfaction tracking is contested and fear is already elevated.',
+    outcomePreview: {
+      success: 'Crowds disperse after limited damage. Fear rises but the treasury mostly holds.',
+      failure: 'Widespread damage; elites withdraw support and security demands emergency powers.',
+    },
     effects: {
       people: { satisfaction: -1, loyalty: 0, fear: 1 },
       elites: { satisfaction: -1, loyalty: 0, fear: 0 },
       security: { satisfaction: 1, loyalty: 0, fear: 0 },
     },
-    resources: { money: -1 },
+    resources: { money: -2 },
   },
   {
     id: 'mock_event_2',
-    title: 'Event 2',
-    description: 'Black-market whispers spike. Elite donors demand quiet payoffs and backstage guarantees.',
+    title: 'Black-market whispers',
+    description: 'Elite donors demand quiet payoffs and backstage guarantees as contraband routes widen.',
     severity: 'high',
+    condition: 'If influence networks are thin, back-channel leverage collapses faster.',
+    outcomePreview: {
+      success: 'Quiet envelopes move; scandal stays off the front page for another week.',
+      failure: 'Leaks multiply; influence bleeds out of the capital and into rival hands.',
+    },
     effects: {
       people: { satisfaction: 0, loyalty: -1, fear: 1 },
       elites: { satisfaction: 1, loyalty: -1, fear: 1 },
@@ -38,9 +49,14 @@ const MOCK_EVENTS: GameEvent[] = [
   },
   {
     id: 'mock_event_3',
-    title: 'Event 3',
-    description: 'A loyalty rally backfires. Crowds cheer on camera while suspicion spreads off-screen.',
+    title: 'Loyalty rally backfires',
+    description: 'Crowds cheer on camera while suspicion spreads off-screen about who staged the spectacle.',
     severity: 'low',
+    condition: 'If staged unity events outpace organic morale, optics can invert sharply.',
+    outcomePreview: {
+      success: 'The rally reads as authentic enough; security stands down without incident.',
+      failure: 'Footage circulates out of context; elites read the rally as a threat to their autonomy.',
+    },
     effects: {
       people: { satisfaction: 1, loyalty: 1, fear: 0 },
       elites: { satisfaction: 0, loyalty: -1, fear: 0 },
@@ -48,6 +64,10 @@ const MOCK_EVENTS: GameEvent[] = [
     },
   },
 ];
+
+export type EventAckResult =
+  | { ok: true; state: GameState }
+  | { ok: false; error: string };
 
 export function applyDueScheduled(
   stats: PlayerStats,
@@ -66,25 +86,46 @@ export function applyDueScheduled(
   return { stats: nextStats, scheduled: remaining };
 }
 
-export function endRound(state: GameState): GameState {
+export function beginEventModal(state: GameState): GameState {
   if (state.phase === 'game_over') {
     return state;
   }
-  const bonus = drawOneCard(state.hand, state.deck, state.deckDiscard, MAX_HAND_CARDS);
-  let hand = bonus.hand;
-  let deck = bonus.deck;
-  let deckDiscard = bonus.discard;
-  let resources = clampResourcesNonNegative(applyResourceDelta(state.resources, { money: 1 }));
+  if (state.phase !== 'player') {
+    return state;
+  }
+  if (state.playerActionsUsed < state.maxPlayerActionsPerRound) {
+    return state;
+  }
   const currentRound = state.round;
   const ev = MOCK_EVENTS[(currentRound - 1) % MOCK_EVENTS.length];
   if (!ev) {
     return state;
   }
+  return {
+    ...state,
+    phase: 'event_modal',
+    pendingEvent: ev,
+    log: [...state.log, `Round ${currentRound}: ${ev.title} — awaiting your response`],
+  };
+}
+
+export function acknowledgePendingEvent(state: GameState): EventAckResult {
+  if (state.phase !== 'event_modal' || !state.pendingEvent) {
+    return { ok: false, error: 'No event is awaiting acknowledgment.' };
+  }
+  const ev = state.pendingEvent;
+  const currentRound = state.round;
   let stats = applyStatEffects(state.stats, ev.effects);
+  let resources = state.resources;
   if (ev.resources) {
     resources = clampResourcesNonNegative(applyResourceDelta(resources, ev.resources));
   }
   stats = applyInstabilityDrift(stats);
+  const bonus = drawOneCard(state.hand, state.deck, state.deckDiscard, MAX_HAND_CARDS);
+  const hand = bonus.hand;
+  const deck = bonus.deck;
+  const deckDiscard = bonus.discard;
+  resources = clampResourcesNonNegative(applyResourceDelta(resources, { money: 1 }));
   const historyEntry = {
     round: currentRound,
     eventId: ev.id,
@@ -93,23 +134,55 @@ export function endRound(state: GameState): GameState {
   };
   const logParts = [
     ...state.log,
+    `Round ${currentRound}: acknowledged ${ev.title}`,
     `End round ${currentRound}: upkeep drew ${bonus.drewId ? 'a card' : 'nothing'}${
       bonus.burned ? ' (burned, hand full)' : ''
     }`,
     `End round ${currentRound}: upkeep +1 money`,
-    `Round ${currentRound} event: ${ev.title}`,
   ];
   if (currentRound >= state.maxRounds) {
     return {
+      ok: true,
+      state: {
+        ...state,
+        hand,
+        deck,
+        deckDiscard,
+        stats,
+        resources,
+        phase: 'game_over',
+        pendingEvent: null,
+        playerActionsUsed: 0,
+        cardsPlayedThisRound: [],
+        eventHistory: [...state.eventHistory, historyEntry],
+        lastResolvedEvent: {
+          round: currentRound,
+          eventId: ev.id,
+          title: ev.title,
+          description: ev.description,
+        },
+        activeEventIds: [...state.activeEventIds, ev.id],
+        scheduledEffects: [],
+        log: [...logParts, 'Campaign concluded.'],
+      },
+    };
+  }
+  const nextRound = currentRound + 1;
+  const applied = applyDueScheduled(stats, state.scheduledEffects, nextRound);
+  return {
+    ok: true,
+    state: {
       ...state,
+      round: nextRound,
+      phase: 'player',
+      pendingEvent: null,
+      playerActionsUsed: 0,
+      cardsPlayedThisRound: [],
+      stats: applied.stats,
+      resources,
       hand,
       deck,
       deckDiscard,
-      stats,
-      resources,
-      phase: 'game_over',
-      playerActionsUsed: 0,
-      cardsPlayedThisRound: [],
       eventHistory: [...state.eventHistory, historyEntry],
       lastResolvedEvent: {
         round: currentRound,
@@ -118,31 +191,8 @@ export function endRound(state: GameState): GameState {
         description: ev.description,
       },
       activeEventIds: [...state.activeEventIds, ev.id],
-      scheduledEffects: [],
-      log: [...logParts, 'Campaign concluded.'],
-    };
-  }
-  const nextRound = currentRound + 1;
-  const applied = applyDueScheduled(stats, state.scheduledEffects, nextRound);
-  return {
-    ...state,
-    round: nextRound,
-    playerActionsUsed: 0,
-    cardsPlayedThisRound: [],
-    stats: applied.stats,
-    resources,
-    hand,
-    deck,
-    deckDiscard,
-    eventHistory: [...state.eventHistory, historyEntry],
-    lastResolvedEvent: {
-      round: currentRound,
-      eventId: ev.id,
-      title: ev.title,
-      description: ev.description,
+      scheduledEffects: applied.scheduled,
+      log: logParts,
     },
-    activeEventIds: [...state.activeEventIds, ev.id],
-    scheduledEffects: applied.scheduled,
-    log: logParts,
   };
 }

@@ -11,6 +11,7 @@ export class GameController {
       maxPlayerActionsPerRound: 3,
       playerActionsUsed: 0,
       phase: 'player',
+      pendingEvent: null,
       stats: {
         people: { satisfaction: 5, loyalty: 5, fear: 5 },
         elites: { satisfaction: 5, loyalty: 5, fear: 5 },

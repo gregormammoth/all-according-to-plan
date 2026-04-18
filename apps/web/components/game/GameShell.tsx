@@ -33,10 +33,10 @@ export function GameShell() {
         />
         <FactionBoard stats={stats} />
         <div className="grid min-h-0 grid-cols-12 gap-4">
-          <aside className="col-span-12 flex min-h-[220px] flex-col lg:col-span-2 lg:min-h-[360px]">
+          <aside className="col-span-4 flex min-h-[220px] flex-col lg:min-h-[360px]">
             <PlayedCards />
           </aside>
-          <main className="col-span-12 min-h-[280px] lg:col-span-8 lg:min-h-[420px]">
+          <main className="col-span-4 min-h-[280px] lg:min-h-[420px]">
             <div className="relative h-[300px] w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm sm:h-[360px] lg:h-[440px]">
               <CastleScene />
               <div className="pointer-events-none absolute inset-y-6 right-3 z-10 flex flex-col gap-2">
@@ -59,7 +59,7 @@ export function GameShell() {
               </div>
             </div>
           </main>
-          <aside className="col-span-12 flex min-h-[220px] flex-col lg:col-span-2 lg:min-h-[360px]">
+          <aside className="col-span-4 flex min-h-[220px] flex-col lg:min-h-[360px]">
             <CrisisPanel />
           </aside>
         </div>

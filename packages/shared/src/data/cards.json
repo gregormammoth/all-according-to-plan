@@ -1,0 +1,591 @@
+{
+  "cards": [
+    {
+      "id": "ministry_truth",
+      "name": "Ministry of Truth",
+      "description": "Centralize narrative control: ministries rewrite records while public messaging swings satisfaction and fear.",
+      "type": "propaganda",
+      "cost": {
+        "money": 3,
+        "influence": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": -1,
+          "loyalty": 1,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "ministry_happiness",
+      "name": "Ministry of Happiness",
+      "description": "Happiness quotas and staged joy campaigns boost public mood while elites question the price of spectacle.",
+      "type": "propaganda",
+      "cost": {
+        "money": 2,
+        "influence": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 2,
+          "loyalty": 1,
+          "fear": -1
+        },
+        "elites": {
+          "satisfaction": 1,
+          "loyalty": 0,
+          "fear": 0
+        },
+        "security": {
+          "satisfaction": 0,
+          "loyalty": 1,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "tv_propaganda",
+      "name": "TV Propaganda",
+      "description": "Prime-time messaging saturates households, lifting people mood while elites bristle at crude messaging.",
+      "type": "propaganda",
+      "cost": {
+        "money": 1
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": -1,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "radio_propaganda",
+      "name": "Radio Propaganda",
+      "description": "Cheap reach into provinces: calm loyalty gains with limited budgets and predictable security optics.",
+      "type": "propaganda",
+      "cost": {
+        "money": 1
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        },
+        "elites": {
+          "satisfaction": 0,
+          "loyalty": 0,
+          "fear": 0
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "street_banners",
+      "name": "Street Banners",
+      "description": "Visual slogans along corridors of power signal order; security appreciates visible alignment.",
+      "type": "propaganda",
+      "cost": {
+        "money": 1
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 1,
+          "loyalty": 0,
+          "fear": 0
+        },
+        "elites": {
+          "satisfaction": 0,
+          "loyalty": 0,
+          "fear": 0
+        },
+        "security": {
+          "satisfaction": 0,
+          "loyalty": 1,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "military_parade",
+      "name": "Military Parade",
+      "description": "Armor on parade intimidates citizens, reassures elites, and showers security services with prestige.",
+      "type": "security",
+      "cost": {
+        "money": 4,
+        "authority": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 2,
+          "loyalty": 2,
+          "fear": -1
+        }
+      }
+    },
+    {
+      "id": "voluntary_contributions",
+      "name": "\"Voluntary\" Contributions",
+      "description": "Shake down households for cash; fear spikes while security profits from enforcement windows.",
+      "type": "economy",
+      "cost": {},
+      "effects": {
+        "people": {
+          "satisfaction": -1,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": 0,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        }
+      },
+      "gain": {
+        "money": 5
+      }
+    },
+    {
+      "id": "wonderwaffe_project",
+      "name": "Wonderwaffe Project",
+      "description": "Prestige megaproject drains treasury, terrifies citizens, and buys elite and security alignment.",
+      "type": "mega_project",
+      "cost": {
+        "money": 8,
+        "authority": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": -1,
+          "loyalty": 0,
+          "fear": 2
+        },
+        "elites": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 2,
+          "loyalty": 3,
+          "fear": -1
+        }
+      }
+    },
+    {
+      "id": "curfew_enforcement",
+      "name": "Curfew Enforcement",
+      "description": "Night lockdowns spike fear among people while security tightens street-level control.",
+      "type": "security",
+      "cost": {
+        "authority": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": -1,
+          "loyalty": 0,
+          "fear": 2
+        },
+        "elites": {
+          "satisfaction": 0,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 2,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "mass_surveillance",
+      "name": "Mass Surveillance Program",
+      "description": "Panoptic programs erode privacy everywhere; security gains tools and swagger at high social cost.",
+      "type": "security",
+      "cost": {
+        "money": 3,
+        "authority": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": -1,
+          "loyalty": 1,
+          "fear": 2
+        },
+        "elites": {
+          "satisfaction": -1,
+          "loyalty": 1,
+          "fear": 2
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 2,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "festival_unity",
+      "name": "Festival of Unity",
+      "description": "Bread-and-circuses release valve: people celebrate openly while security watches from the sidelines.",
+      "type": "social",
+      "cost": {
+        "money": 2
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 2,
+          "loyalty": 1,
+          "fear": -1
+        },
+        "elites": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        },
+        "security": {
+          "satisfaction": 0,
+          "loyalty": 0,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "riot_suppression",
+      "name": "Riot Suppression",
+      "description": "Kinetic crowd control scars satisfaction but proves security dominance in public squares.",
+      "type": "security",
+      "cost": {
+        "authority": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": -2,
+          "loyalty": -1,
+          "fear": 2
+        },
+        "elites": {
+          "satisfaction": 0,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 2,
+          "loyalty": 1,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "elite_bribery",
+      "name": "Elite Bribery",
+      "description": "Quiet envelopes move elite loyalty while people sense widening impunity above them.",
+      "type": "intrigue",
+      "cost": {
+        "money": 4,
+        "influence": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": -1,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": 2,
+          "loyalty": 2,
+          "fear": 0
+        },
+        "security": {
+          "satisfaction": 0,
+          "loyalty": 1,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "rewrite_history",
+      "name": "Rewrite History",
+      "description": "Retcon the past to glorify the present; people rally, elites feel targeted, security backs the line.",
+      "type": "propaganda",
+      "cost": {
+        "influence": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 1,
+          "loyalty": 2,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": -1,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "martial_law",
+      "name": "Martial Law",
+      "description": "Emergency powers maximize fear and security control while satisfaction collapses across factions.",
+      "type": "crisis",
+      "cost": {
+        "authority": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": -3,
+          "loyalty": -1,
+          "fear": 3
+        },
+        "elites": {
+          "satisfaction": -1,
+          "loyalty": -1,
+          "fear": 2
+        },
+        "security": {
+          "satisfaction": 3,
+          "loyalty": 2,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "industrial_subsidies",
+      "name": "Industrial Subsidies",
+      "description": "Factories hum again with subsidies; elites and people gain while the treasury recycles some spend.",
+      "type": "economy",
+      "cost": {
+        "money": 3
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        },
+        "elites": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        }
+      },
+      "gain": {
+        "money": 2
+      }
+    },
+    {
+      "id": "nationalization_decree",
+      "name": "Nationalization Decree",
+      "description": "Seize strategic assets: elites panic, people feel mixed relief, security enforces seizures.",
+      "type": "economy",
+      "cost": {
+        "authority": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": -2,
+          "loyalty": -1,
+          "fear": 2
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        }
+      },
+      "gain": {
+        "money": 4
+      }
+    },
+    {
+      "id": "black_market_tolerance",
+      "name": "Black Market Tolerance",
+      "description": "Let gray markets breathe for tax-like gains; people like access, elites maneuver, security sulks.",
+      "type": "economy",
+      "cost": {},
+      "effects": {
+        "people": {
+          "satisfaction": 1,
+          "loyalty": 0,
+          "fear": -1
+        },
+        "elites": {
+          "satisfaction": 1,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": -1,
+          "loyalty": 0,
+          "fear": 1
+        }
+      },
+      "gain": {
+        "money": 3
+      }
+    },
+    {
+      "id": "tax_reform",
+      "name": "Tax Reform",
+      "description": "Shift burdens: people feel squeezed, elites stabilize, security collects with clearer rules.",
+      "type": "economy",
+      "cost": {},
+      "effects": {
+        "people": {
+          "satisfaction": -1,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        }
+      },
+      "gain": {
+        "money": 4
+      }
+    },
+    {
+      "id": "controlled_opposition",
+      "name": "Controlled Opposition",
+      "description": "Stage manageable rivals to channel dissent; people see choice, elites feel mocked, security tightens nets.",
+      "type": "propaganda",
+      "cost": {
+        "influence": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": -1,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "divide_and_rule",
+      "name": "Divide and Rule Strategy",
+      "description": "Pit factions against each other to prevent unified opposition; fear rises as coalitions fracture.",
+      "type": "strategy",
+      "cost": {
+        "influence": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": -1,
+          "loyalty": 0,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 1,
+          "fear": 0
+        }
+      }
+    },
+    {
+      "id": "hero_cult",
+      "name": "Cult of Personality",
+      "description": "Personality myth saturates media; people adore the figure while elites calculate new leverage points.",
+      "type": "propaganda",
+      "cost": {
+        "influence": 0
+      },
+      "effects": {
+        "people": {
+          "satisfaction": 2,
+          "loyalty": 2,
+          "fear": 1
+        },
+        "elites": {
+          "satisfaction": -1,
+          "loyalty": 1,
+          "fear": 1
+        },
+        "security": {
+          "satisfaction": 1,
+          "loyalty": 2,
+          "fear": 0
+        }
+      }
+    }
+  ]
+}

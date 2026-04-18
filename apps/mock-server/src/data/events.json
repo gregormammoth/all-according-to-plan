@@ -1,0 +1,42 @@
+{
+  "events": [
+    {
+      "id": "grain_shortage",
+      "title": "Grain Shortage Rumors",
+      "description": "Markets tighten while official channels blame foreign interference.",
+      "severity": "medium",
+      "round": 3,
+      "effects": {
+        "people": { "satisfaction": -1, "loyalty": 0, "fear": 1 },
+        "elites": { "satisfaction": -1, "loyalty": 0, "fear": 0 },
+        "security": { "satisfaction": 1, "loyalty": 0, "fear": 0 }
+      },
+      "resources": { "money": -1 }
+    },
+    {
+      "id": "student_protests",
+      "title": "Student Protests",
+      "description": "A coordinated walkout demands transparency reforms.",
+      "severity": "high",
+      "round": 7,
+      "effects": {
+        "people": { "satisfaction": 0, "loyalty": -1, "fear": 1 },
+        "elites": { "satisfaction": 1, "loyalty": -1, "fear": 1 },
+        "security": { "satisfaction": 0, "loyalty": 0, "fear": 1 }
+      },
+      "resources": { "influence": -1 }
+    },
+    {
+      "id": "elite_factionalism",
+      "title": "Elite Factionalism",
+      "description": "Rival patronage networks leak damaging narratives.",
+      "severity": "low",
+      "round": 12,
+      "effects": {
+        "people": { "satisfaction": 1, "loyalty": 1, "fear": 0 },
+        "elites": { "satisfaction": 0, "loyalty": -1, "fear": 0 },
+        "security": { "satisfaction": -1, "loyalty": 0, "fear": 0 }
+      }
+    }
+  ]
+}

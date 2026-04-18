@@ -1,0 +1,25 @@
+{
+  "name": "all-according-to-plan",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "predev": "npm run build -w @all-according-to-plan/shared -w @all-according-to-plan/game-engine -w @all-according-to-plan/ui",
+    "dev": "lerna run dev --parallel",
+    "build": "lerna run build --sort",
+    "lint": "lerna run lint --parallel",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.12.0",
+    "lerna": "^8.1.9",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.16.0"
+  }
+}

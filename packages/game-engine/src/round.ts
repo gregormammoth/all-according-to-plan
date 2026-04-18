@@ -2,13 +2,14 @@ import {
   applyResourceDelta,
   applyStatEffects,
   clampResourcesNonNegative,
+  MAX_HAND_CARDS,
   type GameEvent,
   type GameState,
   type PlayerStats,
   type ScheduledEffect,
 } from '@all-according-to-plan/shared';
+import { drawOneCard } from './deck';
 import { applyInstabilityDrift } from './decay';
-import { drawUntilHandSize, HAND_SIZE } from './state';
 
 const MOCK_EVENTS: GameEvent[] = [
   {
@@ -65,17 +66,21 @@ export function applyDueScheduled(
   return { stats: nextStats, scheduled: remaining };
 }
 
-export function resolveRoundEnd(state: GameState): GameState {
+export function endRound(state: GameState): GameState {
   if (state.phase === 'game_over') {
     return state;
   }
+  const bonus = drawOneCard(state.hand, state.deck, state.deckDiscard, MAX_HAND_CARDS);
+  let hand = bonus.hand;
+  let deck = bonus.deck;
+  let deckDiscard = bonus.discard;
+  let resources = clampResourcesNonNegative(applyResourceDelta(state.resources, { money: 1 }));
   const currentRound = state.round;
   const ev = MOCK_EVENTS[(currentRound - 1) % MOCK_EVENTS.length];
   if (!ev) {
     return state;
   }
   let stats = applyStatEffects(state.stats, ev.effects);
-  let resources = state.resources;
   if (ev.resources) {
     resources = clampResourcesNonNegative(applyResourceDelta(resources, ev.resources));
   }
@@ -86,10 +91,20 @@ export function resolveRoundEnd(state: GameState): GameState {
     title: ev.title,
     description: ev.description,
   };
-  const baseLog = [...state.log, `Round ${currentRound} event: ${ev.title}`];
+  const logParts = [
+    ...state.log,
+    `End round ${currentRound}: upkeep drew ${bonus.drewId ? 'a card' : 'nothing'}${
+      bonus.burned ? ' (burned, hand full)' : ''
+    }`,
+    `End round ${currentRound}: upkeep +1 money`,
+    `Round ${currentRound} event: ${ev.title}`,
+  ];
   if (currentRound >= state.maxRounds) {
     return {
       ...state,
+      hand,
+      deck,
+      deckDiscard,
       stats,
       resources,
       phase: 'game_over',
@@ -104,12 +119,11 @@ export function resolveRoundEnd(state: GameState): GameState {
       },
       activeEventIds: [...state.activeEventIds, ev.id],
       scheduledEffects: [],
-      log: [...baseLog, 'Campaign concluded.'],
+      log: [...logParts, 'Campaign concluded.'],
     };
   }
   const nextRound = currentRound + 1;
   const applied = applyDueScheduled(stats, state.scheduledEffects, nextRound);
-  const drawn = drawUntilHandSize(state.hand, state.deck, HAND_SIZE);
   return {
     ...state,
     round: nextRound,
@@ -117,8 +131,9 @@ export function resolveRoundEnd(state: GameState): GameState {
     cardsPlayedThisRound: [],
     stats: applied.stats,
     resources,
-    hand: drawn.hand,
-    deck: drawn.deck,
+    hand,
+    deck,
+    deckDiscard,
     eventHistory: [...state.eventHistory, historyEntry],
     lastResolvedEvent: {
       round: currentRound,
@@ -128,6 +143,6 @@ export function resolveRoundEnd(state: GameState): GameState {
     },
     activeEventIds: [...state.activeEventIds, ev.id],
     scheduledEffects: applied.scheduled,
-    log: baseLog,
+    log: logParts,
   };
 }

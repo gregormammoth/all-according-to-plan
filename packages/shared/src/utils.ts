@@ -1,8 +1,12 @@
-import { GROUP_KEYS, STAT_MAX, STAT_MIN } from './constants';
+import { GROUP_KEYS, MAX_HAND_CARDS, STAT_MAX, STAT_MIN } from './constants';
 import type {
   CardCost,
   CardEffects,
+  DeckState,
+  FactionStatBlock,
+  GroupKey,
   GroupStats,
+  HandState,
   PlayerStats,
   ResourceKey,
   Resources,
@@ -72,6 +76,48 @@ export function clampResourcesNonNegative(resources: Resources): Resources {
     influence: Math.max(0, resources.influence),
     authority: Math.max(0, resources.authority),
   };
+}
+
+export function handStateFromIds(ids: readonly string[], maxSize = MAX_HAND_CARDS): HandState {
+  return { cards: [...ids], maxSize };
+}
+
+export function deckStateFromIds(ids: readonly string[]): DeckState {
+  return { cards: [...ids] };
+}
+
+function formatStatDelta(block: FactionStatBlock): string {
+  const parts: string[] = [];
+  if (block.satisfaction) parts.push(`sat ${block.satisfaction > 0 ? '+' : ''}${block.satisfaction}`);
+  if (block.loyalty) parts.push(`loy ${block.loyalty > 0 ? '+' : ''}${block.loyalty}`);
+  if (block.fear) parts.push(`fear ${block.fear > 0 ? '+' : ''}${block.fear}`);
+  return parts.join(', ');
+}
+
+export function formatCardCostLine(cost: CardCost): string {
+  const m = cost.money ?? 0;
+  const i = cost.influence ?? 0;
+  const a = cost.authority ?? 0;
+  if (m === 0 && i === 0 && a === 0) return 'Cost: none';
+  const bits: string[] = [];
+  if (m) bits.push(`$${m}`);
+  if (i) bits.push(`inf ${i}`);
+  if (a) bits.push(`auth ${a}`);
+  return `Cost: ${bits.join(' · ')}`;
+}
+
+export function formatCardEffectsLine(effects: CardEffects): string {
+  const labels: Record<GroupKey, string> = {
+    people: 'People',
+    elites: 'Elites',
+    security: 'Security',
+  };
+  const parts: string[] = [];
+  for (const key of GROUP_KEYS) {
+    const line = formatStatDelta(effects[key]);
+    if (line) parts.push(`${labels[key]}: ${line}`);
+  }
+  return parts.length ? parts.join(' | ') : 'Effects: —';
 }
 
 export function calculateStabilityIndex(stats: PlayerStats): number {

@@ -50,6 +50,10 @@ export function AdvisorPanel() {
           <div className="muted">Deck</div>
           <div>{state.deck.length}</div>
         </div> */}
+        <div>
+          <div className="muted">Discard</div>
+          <div>{state.deckDiscard.length}</div>
+        </div>
       </div>
       <div style={{ marginTop: 12 }}>
         <div className="muted">People satisfaction (0–10)</div>

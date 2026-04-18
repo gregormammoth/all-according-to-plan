@@ -1,19 +1,19 @@
 'use client';
 
-import { canPay } from '@all-according-to-plan/shared';
+import { ActionEconomyBar, PlayerHandRail } from '@all-according-to-plan/ui';
 import { useGameStore } from '@/state/gameStore';
 
 export function CardBar() {
   const state = useGameStore((s) => s.state);
   const library = useGameStore((s) => s.library);
   const error = useGameStore((s) => s.error);
+  const playSelectMode = useGameStore((s) => s.playSelectMode);
+  const togglePlaySelectMode = useGameStore((s) => s.togglePlaySelectMode);
   const play = useGameStore((s) => s.play);
-  const endPlayerPhase = useGameStore((s) => s.endPlayerPhase);
-  const canAct = state.phase === 'player' && state.playerActionsUsed < state.maxPlayerActionsPerRound;
-  const canEndEarly =
-    state.phase === 'player' &&
-    state.playerActionsUsed > 0 &&
-    state.playerActionsUsed < state.maxPlayerActionsPerRound;
+  const draw = useGameStore((s) => s.draw);
+  const gain = useGameStore((s) => s.gain);
+  const actionsRemaining =
+    state.phase === 'game_over' ? 0 : Math.max(0, state.maxPlayerActionsPerRound - state.playerActionsUsed);
 
   return (
     <div className="panel bottom">
@@ -21,45 +21,41 @@ export function CardBar() {
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 8,
+          alignItems: 'flex-start',
+          marginBottom: 10,
           gap: 12,
           flexWrap: 'wrap',
         }}
       >
-        <h3>Player phase</h3>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {error ? <div className="muted">{error}</div> : <div className="muted">Play up to three cards</div>}
-          <button
-            type="button"
-            className="card"
-            style={{ padding: '6px 10px' }}
-            disabled={!canEndEarly}
-            onClick={() => endPlayerPhase()}
-          >
-            End phase early
-          </button>
+        <div>
+          <h3>Player phase</h3>
+          <div className="muted" style={{ marginTop: 4 }}>
+            Spend exactly {state.maxPlayerActionsPerRound} actions, then upkeep runs: bonus draw, +1 money, event,
+            next round.
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, minWidth: 200 }}>
+          {error ? <div className="muted">{error}</div> : null}
+          <ActionEconomyBar
+            phase={state.phase}
+            actionsRemaining={actionsRemaining}
+            deckSize={state.deck.length}
+            playSelectMode={playSelectMode}
+            onTogglePlaySelectMode={() => togglePlaySelectMode()}
+            onDrawCard={() => draw()}
+            onGainResource={(r) => gain(r)}
+          />
         </div>
       </div>
-      <div className="card-row">
-        {state.hand.map((id) => {
-          const card = library.get(id);
-          if (!card) return null;
-          const affordable = canPay(state.resources, card.cost);
-          const disabled = !affordable || !canAct || state.phase === 'game_over';
-          return (
-            <button key={id} type="button" className="card" disabled={disabled} onClick={() => play(id)}>
-              <div className="card-title">{card.name}</div>
-              <div className="card-meta">{card.type}</div>
-              <div className="card-meta">{card.description}</div>
-              <div className="card-meta">
-                Money: {card.cost.money ?? 0}
-                {/* m {card.cost.money ?? 0} · i {card.cost.influence ?? 0} · a {card.cost.authority ?? 0} */}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <PlayerHandRail
+        cardIds={state.hand}
+        resolveCard={(id) => library.get(id)}
+        resources={state.resources}
+        phase={state.phase}
+        actionsRemaining={actionsRemaining}
+        playSelectMode={playSelectMode}
+        onCardChosen={(id) => play(id)}
+      />
     </div>
   );
 }

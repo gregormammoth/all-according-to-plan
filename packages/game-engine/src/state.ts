@@ -1,18 +1,20 @@
 import {
   cardsDocument,
+  MAX_HAND_CARDS,
+  OPENING_HAND_CARDS,
+  PLAYER_ACTIONS_PER_ROUND,
   type Card,
   type GameState,
   type PlayerStats,
   type Resources,
 } from '@all-according-to-plan/shared';
 import { buildCardLibrary, type CardLibrary } from './library';
+import { drawUntilHandSize } from './deck';
 import { shuffle } from './shuffle';
 
-export const HAND_SIZE = 6;
+export { MAX_HAND_CARDS } from '@all-according-to-plan/shared';
 
 export const DEFAULT_MAX_ROUNDS = 25;
-
-export const DEFAULT_ACTIONS_PER_ROUND = 3;
 
 const defaultStats = (): PlayerStats => ({
   people: { satisfaction: 6, loyalty: 5, fear: 4 },
@@ -22,42 +24,27 @@ const defaultStats = (): PlayerStats => ({
 
 const defaultResources = (): Resources => ({
   money: 14,
-  influence: 0, //7,
-  authority: 0, //6,
+  influence: 0,
+  authority: 0,
 });
-
-export function drawUntilHandSize(
-  hand: string[],
-  deck: string[],
-  target: number
-): { hand: string[]; deck: string[] } {
-  const nextHand = [...hand];
-  const nextDeck = [...deck];
-  while (nextHand.length < target && nextDeck.length > 0) {
-    const id = nextDeck.shift();
-    if (id) nextHand.push(id);
-  }
-  return { hand: nextHand, deck: nextDeck };
-}
 
 export function createInitialState(cards?: Card[]): GameState {
   const source = cards ?? cardsDocument.cards;
   const ids = shuffle(source.map((c) => c.id));
-  let hand: string[] = [];
-  let deck = [...ids];
-  const drawn = drawUntilHandSize(hand, deck, HAND_SIZE);
-  hand = drawn.hand;
-  deck = drawn.deck;
+  const deck = [...ids];
+  const emptyDiscard: string[] = [];
+  const drawn = drawUntilHandSize([], deck, OPENING_HAND_CARDS, MAX_HAND_CARDS, emptyDiscard);
   return {
     round: 1,
     maxRounds: DEFAULT_MAX_ROUNDS,
-    maxPlayerActionsPerRound: DEFAULT_ACTIONS_PER_ROUND,
+    maxPlayerActionsPerRound: PLAYER_ACTIONS_PER_ROUND,
     playerActionsUsed: 0,
     phase: 'player',
     stats: defaultStats(),
     resources: defaultResources(),
-    hand,
-    deck,
+    hand: drawn.hand,
+    deck: drawn.deck,
+    deckDiscard: drawn.discard,
     playedCardIds: [],
     cardsPlayedThisRound: [],
     activeEventIds: [],

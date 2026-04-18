@@ -6,9 +6,22 @@ export type GroupStats = Record<GroupStatKey, number>;
 
 export type PlayerStats = Record<GroupKey, GroupStats>;
 
-export type ResourceKey = 'money' | 'influence' | 'authority';
+export type ResourceType = 'money' | 'influence' | 'authority';
+
+export type ResourceKey = ResourceType;
 
 export type Resources = Record<ResourceKey, number>;
+
+export type ActionType = 'playCard' | 'drawCard' | 'gainResource';
+
+export type DeckState = {
+  cards: string[];
+};
+
+export type HandState = {
+  cards: string[];
+  maxSize: number;
+};
 
 export type CardCost = Partial<Resources>;
 
@@ -58,6 +71,7 @@ export type GameState = {
   resources: Resources;
   hand: string[];
   deck: string[];
+  deckDiscard: string[];
   playedCardIds: string[];
   cardsPlayedThisRound: string[];
   activeEventIds: string[];

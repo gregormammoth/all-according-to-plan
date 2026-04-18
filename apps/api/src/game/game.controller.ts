@@ -19,6 +19,7 @@ export class GameController {
       resources: { money: 10, influence: 5, authority: 5 },
       hand: [],
       deck: [],
+      deckDiscard: [],
       playedCardIds: [],
       cardsPlayedThisRound: [],
       activeEventIds: [],

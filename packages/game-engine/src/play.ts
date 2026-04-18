@@ -5,14 +5,24 @@ import {
   clampResourcesNonNegative,
   payCost,
   type GameState,
+  type ResourceType,
+  type Resources,
 } from '@all-according-to-plan/shared';
 import type { CardLibrary } from './library';
-import { resolveRoundEnd } from './round';
-import { drawUntilHandSize, HAND_SIZE } from './state';
+import { drawOneCard } from './deck';
+import { endRound } from './round';
+import { MAX_HAND_CARDS } from './state';
 
 export type PlayResult =
   | { ok: true; state: GameState }
   | { ok: false; error: string };
+
+function afterPlayerAction(state: GameState): GameState {
+  if (state.playerActionsUsed >= state.maxPlayerActionsPerRound) {
+    return endRound(state);
+  }
+  return state;
+}
 
 export function playCard(library: CardLibrary, state: GameState, cardId: string): PlayResult {
   if (state.phase === 'game_over') {
@@ -47,38 +57,80 @@ export function playCard(library: CardLibrary, state: GameState, cardId: string)
   const hand = state.hand.filter((id) => id !== cardId);
   const playedCardIds = [...state.playedCardIds, cardId];
   const cardsPlayedThisRound = [...state.cardsPlayedThisRound, cardId];
-  const drawn = drawUntilHandSize(hand, state.deck, HAND_SIZE);
-  const log = [...state.log, `Round ${state.round} action ${nextActionIndex}: ${card.name}`];
+  const log = [...state.log, `Round ${state.round} action ${nextActionIndex}: played ${card.name}`];
   let nextState: GameState = {
     ...state,
     stats,
     resources,
-    hand: drawn.hand,
-    deck: drawn.deck,
+    hand,
     playedCardIds,
     cardsPlayedThisRound,
     playerActionsUsed: nextActionIndex,
     scheduledEffects,
     log,
   };
-  if (nextActionIndex >= state.maxPlayerActionsPerRound) {
-    nextState = resolveRoundEnd(nextState);
-  }
+  nextState = afterPlayerAction(nextState);
   return { ok: true, state: nextState };
 }
 
-export function finishPlayerPhaseEarly(_library: CardLibrary, state: GameState): PlayResult {
+export function drawCard(_library: CardLibrary, state: GameState): PlayResult {
   if (state.phase === 'game_over') {
     return { ok: false, error: 'Campaign concluded.' };
   }
   if (state.phase !== 'player') {
     return { ok: false, error: 'Not in player phase.' };
   }
-  if (state.playerActionsUsed === 0) {
-    return { ok: false, error: 'Play at least one card before ending the player phase.' };
+  if (state.playerActionsUsed >= state.maxPlayerActionsPerRound) {
+    return { ok: false, error: 'No actions remaining this round.' };
+  }
+  if (state.deck.length === 0) {
+    return { ok: false, error: 'Deck is empty.' };
+  }
+  const nextActionIndex = state.playerActionsUsed + 1;
+  const step = drawOneCard(state.hand, state.deck, state.deckDiscard, MAX_HAND_CARDS);
+  const logLine =
+    step.drewId === null
+      ? `Round ${state.round} action ${nextActionIndex}: draw (empty deck)`
+      : step.burned
+        ? `Round ${state.round} action ${nextActionIndex}: draw burned top card (hand full)`
+        : `Round ${state.round} action ${nextActionIndex}: drew a card`;
+  let nextState: GameState = {
+    ...state,
+    hand: step.hand,
+    deck: step.deck,
+    deckDiscard: step.discard,
+    playerActionsUsed: nextActionIndex,
+    log: [...state.log, logLine],
+  };
+  nextState = afterPlayerAction(nextState);
+  return { ok: true, state: nextState };
+}
+
+export function gainResource(_library: CardLibrary, state: GameState, resource: ResourceType): PlayResult {
+  if (state.phase === 'game_over') {
+    return { ok: false, error: 'Campaign concluded.' };
+  }
+  if (state.phase !== 'player') {
+    return { ok: false, error: 'Not in player phase.' };
   }
   if (state.playerActionsUsed >= state.maxPlayerActionsPerRound) {
-    return { ok: false, error: 'Player phase already complete.' };
+    return { ok: false, error: 'No actions remaining this round.' };
   }
-  return { ok: true, state: resolveRoundEnd(state) };
+  const nextActionIndex = state.playerActionsUsed + 1;
+  const patch: Partial<Resources> =
+    resource === 'money'
+      ? { money: 1 }
+      : resource === 'influence'
+        ? { influence: 1 }
+        : { authority: 1 };
+  const resources = clampResourcesNonNegative(applyResourceDelta(state.resources, patch));
+  const log = [...state.log, `Round ${state.round} action ${nextActionIndex}: gained +1 ${resource}`];
+  let nextState: GameState = {
+    ...state,
+    resources,
+    playerActionsUsed: nextActionIndex,
+    log,
+  };
+  nextState = afterPlayerAction(nextState);
+  return { ok: true, state: nextState };
 }

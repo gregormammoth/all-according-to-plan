@@ -46,6 +46,7 @@ export class GameStateDto {
   resources!: ResourcesDto;
   hand!: string[];
   deck!: string[];
+  deckDiscard!: string[];
   playedCardIds!: string[];
   cardsPlayedThisRound!: string[];
   activeEventIds!: string[];

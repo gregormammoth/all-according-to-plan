@@ -1,4 +1,4 @@
-function hash32(input: string): number {
+export function hash32(input: string): number {
   let h = 2166136261;
   for (let i = 0; i < input.length; i++) {
     h ^= input.charCodeAt(i);
@@ -7,7 +7,7 @@ function hash32(input: string): number {
   return h >>> 0;
 }
 
-function mulberry32(seed: number): () => number {
+export function createSeededRng(seed: number): () => number {
   let t = seed >>> 0;
   return () => {
     t += 0x6d2b79f5;
@@ -19,6 +19,6 @@ function mulberry32(seed: number): () => number {
 
 export function deterministicRollPercent(gameSeed: number, round: number, choiceId: string): number {
   const seed = hash32(`${gameSeed}:${round}:${choiceId}`);
-  const next = mulberry32(seed);
+  const next = createSeededRng(seed);
   return Math.floor(next() * 100) + 1;
 }

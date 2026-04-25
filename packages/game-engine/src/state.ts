@@ -48,6 +48,8 @@ export function createInitialState(cards?: Card[]): GameState {
     lastOutcomeSummary: null,
     statChangesPreview: null,
     resourceChangesPreview: null,
+    reshuffleCount: 0,
+    lastDeckAction: null,
     stats: defaultStats(),
     resources: defaultResources(),
     hand: drawn.hand,
@@ -59,6 +61,8 @@ export function createInitialState(cards?: Card[]): GameState {
     eventHistory: [],
     lastResolvedEvent: null,
     scheduledEffects: [],
+    gameResult: null,
+    finalStatsSnapshot: null,
     log: ['Campaign opened.'],
   };
 }

@@ -275,6 +275,71 @@ function applyOutcomeStats(stats: PlayerStats, deltas: Outcome['statDeltas']): P
   return clampStats(next);
 }
 
+function isFailureState(stats: PlayerStats): boolean {
+  return (
+    stats.people.satisfaction <= 0 &&
+    stats.elites.satisfaction <= 0 &&
+    stats.security.satisfaction <= 0
+  );
+}
+
+function calculateEndScore(stats: PlayerStats, resources: GameState['resources']): number {
+  const remainingResources = resources.money + resources.influence + resources.authority;
+  const score =
+    stats.people.satisfaction * 2 +
+    stats.elites.loyalty * 2 +
+    stats.security.fear +
+    remainingResources;
+  return Math.round(score);
+}
+
+function stabilityIndex(stats: PlayerStats): number {
+  const groups: Array<keyof PlayerStats> = ['people', 'elites', 'security'];
+  let total = 0;
+  for (const key of groups) {
+    const g = stats[key];
+    total += ((g.satisfaction + g.loyalty - g.fear + 20) / 30) * 100;
+  }
+  return Math.round(total / groups.length);
+}
+
+function computeGameResult(stats: PlayerStats, resources: GameState['resources']): GameState['gameResult'] {
+  const score = calculateEndScore(stats, resources);
+  if (isFailureState(stats)) {
+    return {
+      type: 'failure',
+      score,
+      summaryText: 'The state collapsed under internal pressure.',
+    };
+  }
+  const stable = stabilityIndex(stats);
+  if (stable >= 62) {
+    return {
+      type: 'victory',
+      score,
+      summaryText: 'Your rule stands firm and unchallenged.',
+    };
+  }
+  return {
+    type: 'survival',
+    score,
+    summaryText: 'You held control, but cracks remain.',
+  };
+}
+
+function computeFinalSnapshot(
+  stats: PlayerStats,
+  resources: GameState['resources'],
+  state: GameState
+): GameState['finalStatsSnapshot'] {
+  return {
+    stats,
+    resources,
+    totalCardsPlayed: state.playedCardIds.length,
+    totalEvents: state.eventHistory.length + 1,
+  };
+}
+
 export function applyDueScheduled(
   stats: PlayerStats,
   scheduled: ScheduledEffect[],
@@ -417,22 +482,30 @@ export function continueAfterAppliedEvent(state: GameState): EventAckResult {
   const currentRound = state.round;
   const ev = state.pendingEvent;
   const stats = applyInstabilityDrift(state.stats);
-  const bonus = drawOneCard(state.hand, state.deck, state.deckDiscard, MAX_HAND_CARDS);
+  const bonus = drawOneCard(state.hand, state.deck, state.deckDiscard, MAX_HAND_CARDS, {
+    gameSeed: state.gameSeed,
+    round: state.round,
+    reshuffleCount: state.reshuffleCount,
+  });
   const resources = clampResourcesNonNegative(applyResourceDelta(state.resources, { money: 1 }));
   const historyEntry = {
     round: currentRound,
     eventId: ev.id,
     title: ev.title,
     description: ev.description,
+    outcomeLabel: state.lastOutcomeSummary ?? undefined,
   };
   const logParts = [
     ...state.log,
+    ...(bonus.reshuffled ? [`End round ${currentRound}: deck reshuffled`] : []),
     `End round ${currentRound}: upkeep drew ${bonus.drewId ? 'a card' : 'nothing'}${
       bonus.burned ? ' (burned, hand full)' : ''
     }`,
     `End round ${currentRound}: upkeep +1 money`,
   ];
-  if (currentRound >= state.maxRounds) {
+  if (currentRound >= state.maxRounds || isFailureState(stats)) {
+    const gameResult = computeGameResult(stats, resources);
+    const finalStatsSnapshot = computeFinalSnapshot(stats, resources, state);
     return {
       ok: true,
       state: {
@@ -440,6 +513,8 @@ export function continueAfterAppliedEvent(state: GameState): EventAckResult {
         hand: bonus.hand,
         deck: bonus.deck,
         deckDiscard: bonus.discard,
+        reshuffleCount: bonus.reshuffleCount,
+        lastDeckAction: bonus.lastDeckAction,
         stats,
         resources,
         phase: 'game_over',
@@ -453,6 +528,8 @@ export function continueAfterAppliedEvent(state: GameState): EventAckResult {
         lastResolvedEvent: historyEntry,
         activeEventIds: [...state.activeEventIds, ev.id],
         scheduledEffects: [],
+        gameResult,
+        finalStatsSnapshot,
         statChangesPreview: null,
         resourceChangesPreview: null,
         log: [...logParts, 'Campaign concluded.'],
@@ -478,10 +555,14 @@ export function continueAfterAppliedEvent(state: GameState): EventAckResult {
       hand: bonus.hand,
       deck: bonus.deck,
       deckDiscard: bonus.discard,
+      reshuffleCount: bonus.reshuffleCount,
+      lastDeckAction: bonus.lastDeckAction,
       eventHistory: [...state.eventHistory, historyEntry],
       lastResolvedEvent: historyEntry,
       activeEventIds: [...state.activeEventIds, ev.id],
       scheduledEffects: applied.scheduled,
+      gameResult: null,
+      finalStatsSnapshot: null,
       statChangesPreview: null,
       resourceChangesPreview: null,
       log: logParts,

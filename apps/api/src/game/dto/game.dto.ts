@@ -27,6 +27,7 @@ export class EventHistoryEntryDto {
   eventId!: string;
   title!: string;
   description!: string;
+  outcomeLabel?: string;
 }
 
 export class LastResolvedEventDto {
@@ -50,6 +51,8 @@ export class GameStateDto {
   lastOutcomeSummary!: string | null;
   statChangesPreview!: Record<string, unknown> | null;
   resourceChangesPreview!: Record<string, unknown> | null;
+  reshuffleCount!: number;
+  lastDeckAction!: 'draw' | 'reshuffle' | null;
   stats!: PlayerStatsDto;
   resources!: ResourcesDto;
   hand!: string[];
@@ -61,5 +64,7 @@ export class GameStateDto {
   eventHistory!: EventHistoryEntryDto[];
   lastResolvedEvent!: LastResolvedEventDto | null;
   scheduledEffects!: Array<{ firesAtRound: number; effects: unknown }>;
+  gameResult!: Record<string, unknown> | null;
+  finalStatsSnapshot!: Record<string, unknown> | null;
   log!: string[];
 }

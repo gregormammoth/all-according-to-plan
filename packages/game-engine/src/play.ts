@@ -83,14 +83,20 @@ export function drawCard(_library: CardLibrary, state: GameState): PlayResult {
   if (state.playerActionsUsed >= state.maxPlayerActionsPerRound) {
     return { ok: false, error: 'No actions remaining this round.' };
   }
-  if (state.deck.length === 0) {
+  if (state.deck.length === 0 && state.deckDiscard.length === 0) {
     return { ok: false, error: 'Deck is empty.' };
   }
   const nextActionIndex = state.playerActionsUsed + 1;
-  const step = drawOneCard(state.hand, state.deck, state.deckDiscard, MAX_HAND_CARDS);
+  const step = drawOneCard(state.hand, state.deck, state.deckDiscard, MAX_HAND_CARDS, {
+    gameSeed: state.gameSeed,
+    round: state.round,
+    reshuffleCount: state.reshuffleCount,
+  });
   const logLine =
     step.drewId === null
       ? `Round ${state.round} action ${nextActionIndex}: draw (empty deck)`
+      : step.reshuffled
+        ? `Round ${state.round} action ${nextActionIndex}: deck reshuffled, then drew a card`
       : step.burned
         ? `Round ${state.round} action ${nextActionIndex}: draw burned top card (hand full)`
         : `Round ${state.round} action ${nextActionIndex}: drew a card`;
@@ -99,6 +105,8 @@ export function drawCard(_library: CardLibrary, state: GameState): PlayResult {
     hand: step.hand,
     deck: step.deck,
     deckDiscard: step.discard,
+    reshuffleCount: step.reshuffleCount,
+    lastDeckAction: step.lastDeckAction,
     playerActionsUsed: nextActionIndex,
     log: [...state.log, logLine],
   };

@@ -19,6 +19,8 @@ export class GameController {
       lastOutcomeSummary: null,
       statChangesPreview: null,
       resourceChangesPreview: null,
+      reshuffleCount: 0,
+      lastDeckAction: null,
       stats: {
         people: { satisfaction: 5, loyalty: 5, fear: 5 },
         elites: { satisfaction: 5, loyalty: 5, fear: 5 },
@@ -34,6 +36,8 @@ export class GameController {
       eventHistory: [],
       lastResolvedEvent: null,
       scheduledEffects: [],
+      gameResult: null,
+      finalStatsSnapshot: null,
       log: ['api placeholder snapshot'],
     };
   }

@@ -100,6 +100,19 @@ export type ScheduledEffect = {
   effects: CardEffects;
 };
 
+export type GameResult = {
+  type: 'victory' | 'survival' | 'failure';
+  score: number;
+  summaryText: string;
+};
+
+export type FinalStatsSnapshot = {
+  stats: FactionStats;
+  resources: Resources;
+  totalCardsPlayed: number;
+  totalEvents: number;
+};
+
 export type GameState = {
   round: number;
   maxRounds: number;
@@ -114,6 +127,8 @@ export type GameState = {
   lastOutcomeSummary: string | null;
   statChangesPreview: Outcome['statDeltas'] | null;
   resourceChangesPreview: Outcome['resourceDeltas'] | null;
+  reshuffleCount: number;
+  lastDeckAction: 'draw' | 'reshuffle' | null;
   stats: PlayerStats;
   resources: Resources;
   hand: string[];
@@ -127,6 +142,7 @@ export type GameState = {
     eventId: string;
     title: string;
     description: string;
+    outcomeLabel?: string;
   }>;
   lastResolvedEvent: {
     round: number;
@@ -135,6 +151,8 @@ export type GameState = {
     description: string;
   } | null;
   scheduledEffects: ScheduledEffect[];
+  gameResult: GameResult | null;
+  finalStatsSnapshot: FinalStatsSnapshot | null;
   log: string[];
 };
 

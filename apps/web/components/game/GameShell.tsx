@@ -4,6 +4,7 @@ import { CardBar } from '@/components/game/CardBar';
 import { CrisisPanel } from '@/components/game/CrisisPanel';
 import { EventModal } from '@/components/game/EventModal';
 import { FactionBoard } from '@/components/game/FactionBoard';
+import { GameOverScreen } from '@/components/game/GameOverScreen';
 import { PlayedCards } from '@/components/game/PlayedCards';
 import { Timeline } from '@/components/game/Timeline';
 import { AdvisorPanel } from '@/components/game/AdvisorPanel';
@@ -19,6 +20,9 @@ export function GameShell() {
   const phase = useGameStore((s) => s.state.phase);
   const stats = useGameStore((s) => s.state.stats);
   const stability = calculateStabilityIndex(stats);
+  if (phase === 'game_over') {
+    return <GameOverScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-board-cream">

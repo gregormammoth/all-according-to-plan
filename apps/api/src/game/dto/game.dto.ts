@@ -42,7 +42,14 @@ export class GameStateDto {
   maxPlayerActionsPerRound!: number;
   playerActionsUsed!: number;
   phase!: string;
+  gameSeed!: number;
   pendingEvent!: Record<string, unknown> | null;
+  pendingChoiceId!: string | null;
+  diceResult!: Record<string, unknown> | null;
+  eventStep!: string;
+  lastOutcomeSummary!: string | null;
+  statChangesPreview!: Record<string, unknown> | null;
+  resourceChangesPreview!: Record<string, unknown> | null;
   stats!: PlayerStatsDto;
   resources!: ResourcesDto;
   hand!: string[];

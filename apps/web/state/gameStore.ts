@@ -1,10 +1,13 @@
 import {
-  acknowledgePendingEvent,
+  applyRevealedOutcome,
+  chooseEventChoice,
+  continueAfterAppliedEvent,
   createInitialState,
   drawCard,
   gainResource,
   getDefaultLibrary,
   playCard,
+  rollPendingEvent,
   type CardLibrary,
 } from '@all-according-to-plan/game-engine';
 import type { GameEvent, GameState, ResourceType } from '@all-according-to-plan/shared';
@@ -32,7 +35,10 @@ type GameStore = {
   play: (cardId: string) => void;
   draw: () => void;
   gain: (resource: ResourceType) => void;
-  acknowledgeEvent: () => void;
+  selectEventChoice: (choiceId: string) => void;
+  rollEvent: () => void;
+  applyEventOutcome: () => void;
+  continueEvent: () => void;
   reset: () => void;
 };
 
@@ -90,8 +96,47 @@ export const useGameStore = create<GameStore>((set, get) => ({
       eventModal: eventModalFromGameState(res.state),
     });
   },
-  acknowledgeEvent: () => {
-    const res = acknowledgePendingEvent(get().state);
+  selectEventChoice: (choiceId) => {
+    const res = chooseEventChoice(get().state, choiceId);
+    if (!res.ok) {
+      set({ error: res.error });
+      return;
+    }
+    set({
+      state: res.state,
+      error: null,
+      eventModal: eventModalFromGameState(res.state),
+      playSelectMode: false,
+    });
+  },
+  rollEvent: () => {
+    const res = rollPendingEvent(get().state);
+    if (!res.ok) {
+      set({ error: res.error });
+      return;
+    }
+    set({
+      state: res.state,
+      error: null,
+      eventModal: eventModalFromGameState(res.state),
+      playSelectMode: false,
+    });
+  },
+  applyEventOutcome: () => {
+    const res = applyRevealedOutcome(get().state);
+    if (!res.ok) {
+      set({ error: res.error });
+      return;
+    }
+    set({
+      state: res.state,
+      error: null,
+      eventModal: eventModalFromGameState(res.state),
+      playSelectMode: false,
+    });
+  },
+  continueEvent: () => {
+    const res = continueAfterAppliedEvent(get().state);
     if (!res.ok) {
       set({ error: res.error });
       return;

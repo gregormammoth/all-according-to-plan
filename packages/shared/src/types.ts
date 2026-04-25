@@ -5,6 +5,7 @@ export type GroupStatKey = 'satisfaction' | 'loyalty' | 'fear';
 export type GroupStats = Record<GroupStatKey, number>;
 
 export type PlayerStats = Record<GroupKey, GroupStats>;
+export type FactionStats = PlayerStats;
 
 export type ResourceType = 'money' | 'influence' | 'authority';
 
@@ -57,7 +58,40 @@ export type GameEvent = {
     success: string;
     failure: string;
   };
+  choices?: EventChoice[];
 };
+
+export type Outcome = {
+  statDeltas: Partial<Record<GroupKey, Partial<GroupStats>>>;
+  resourceDeltas: Partial<Resources>;
+};
+
+export type EventChoice = {
+  id: string;
+  text: string;
+  cost?: Partial<Resources>;
+  probability?: {
+    success: number;
+    partial: number;
+    failure: number;
+  };
+  outcomes: {
+    success: Outcome;
+    partial: Outcome;
+    failure: Outcome;
+  };
+};
+
+export type DiceResult = {
+  roll: number;
+  threshold: {
+    success: number;
+    partial: number;
+  };
+  outcomeType: 'success' | 'partial_success' | 'failure';
+};
+
+export type EventStep = 'idle' | 'choice' | 'rolling' | 'revealed' | 'applied';
 
 export type GamePhase = 'player' | 'event_modal' | 'game_over';
 
@@ -72,7 +106,14 @@ export type GameState = {
   maxPlayerActionsPerRound: number;
   playerActionsUsed: number;
   phase: GamePhase;
+  gameSeed: number;
   pendingEvent: GameEvent | null;
+  pendingChoiceId: string | null;
+  diceResult: DiceResult | null;
+  eventStep: EventStep;
+  lastOutcomeSummary: string | null;
+  statChangesPreview: Outcome['statDeltas'] | null;
+  resourceChangesPreview: Outcome['resourceDeltas'] | null;
   stats: PlayerStats;
   resources: Resources;
   hand: string[];

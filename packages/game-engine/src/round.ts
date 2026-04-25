@@ -15,6 +15,7 @@ import {
 import { drawOneCard } from './deck';
 import { applyInstabilityDrift } from './decay';
 import { deterministicRollPercent } from './rng';
+import type { CardLibrary } from './library';
 
 const MOCK_EVENTS: GameEvent[] = [
   {
@@ -357,6 +358,26 @@ export function applyDueScheduled(
   return { stats: nextStats, scheduled: remaining };
 }
 
+export function applyPassiveEffects(state: GameState, library: CardLibrary): GameState {
+  if (state.activeAssets.length === 0) return state;
+  let stats = state.stats;
+  for (const assetId of state.activeAssets) {
+    const card = library.get(assetId);
+    if (!card || card.type !== 'asset') continue;
+    const passives = card.passiveEffects ?? [];
+    for (const passive of passives) {
+      stats = applyStatEffects(stats, passive);
+    }
+  }
+  return stats === state.stats
+    ? state
+    : {
+        ...state,
+        stats,
+        log: [...state.log, `Round ${state.round}: passive asset effects applied`],
+      };
+}
+
 export function beginEventModal(state: GameState): GameState {
   if (state.phase !== 'player') return state;
   if (state.playerActionsUsed < state.maxPlayerActionsPerRound) return state;
@@ -472,7 +493,7 @@ export function applyRevealedOutcome(state: GameState): EventProgressResult {
   };
 }
 
-export function continueAfterAppliedEvent(state: GameState): EventAckResult {
+export function continueAfterAppliedEvent(library: CardLibrary, state: GameState): EventAckResult {
   if (state.phase !== 'event_modal' || !state.pendingEvent) {
     return { ok: false, error: 'No event is awaiting continue.' };
   }
@@ -538,11 +559,18 @@ export function continueAfterAppliedEvent(state: GameState): EventAckResult {
   }
   const nextRound = currentRound + 1;
   const applied = applyDueScheduled(stats, state.scheduledEffects, nextRound);
+  const withPassive = applyPassiveEffects(
+    {
+      ...state,
+      round: nextRound,
+      stats: applied.stats,
+    },
+    library
+  );
   return {
     ok: true,
     state: {
-      ...state,
-      round: nextRound,
+      ...withPassive,
       phase: 'player',
       pendingEvent: null,
       pendingChoiceId: null,
@@ -550,7 +578,6 @@ export function continueAfterAppliedEvent(state: GameState): EventAckResult {
       eventStep: 'idle',
       playerActionsUsed: 0,
       cardsPlayedThisRound: [],
-      stats: applied.stats,
       resources,
       hand: bonus.hand,
       deck: bonus.deck,

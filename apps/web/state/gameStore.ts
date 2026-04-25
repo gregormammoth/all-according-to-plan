@@ -136,7 +136,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
   continueEvent: () => {
-    const res = continueAfterAppliedEvent(get().state);
+    const res = continueAfterAppliedEvent(get().library, get().state);
     if (!res.ok) {
       set({ error: res.error });
       return;

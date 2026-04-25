@@ -38,11 +38,13 @@ export type Card = {
   id: string;
   name: string;
   description: string;
-  type: string;
+  type: 'asset' | 'event';
+  archetype?: string;
   cost: CardCost;
-  effects: CardEffects;
+  immediateEffects?: CardEffects;
+  passiveEffects?: CardEffects[];
   gain?: Partial<Resources>;
-  delayedEffects?: CardEffects;
+  delayedEffects?: CardEffects[];
 };
 
 export type GameEvent = {
@@ -134,6 +136,7 @@ export type GameState = {
   hand: string[];
   deck: string[];
   deckDiscard: string[];
+  activeAssets: string[];
   playedCardIds: string[];
   cardsPlayedThisRound: string[];
   activeEventIds: string[];

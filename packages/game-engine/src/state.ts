@@ -3,6 +3,7 @@ import {
   MAX_HAND_CARDS,
   OPENING_HAND_CARDS,
   PLAYER_ACTIONS_PER_ROUND,
+  type CardEffects,
   type Card,
   type GameState,
   type PlayerStats,
@@ -28,8 +29,43 @@ const defaultResources = (): Resources => ({
   authority: 0,
 });
 
+function inferCardType(archetype: string): 'asset' | 'event' {
+  return archetype === 'economy' || archetype === 'strategy' || archetype === 'social'
+    ? 'asset'
+    : 'event';
+}
+
+function toArrayEffects(value: unknown): CardEffects[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value as CardEffects[];
+  return [value as CardEffects];
+}
+
+function normalizeCard(source: any): Card {
+  const archetype = typeof source.type === 'string' ? source.type : 'event';
+  const immediate = source.immediateEffects ?? source.effects;
+  const passive = source.passiveEffects ?? [];
+  const delayed = source.delayedEffects ?? [];
+  return {
+    id: source.id,
+    name: source.name,
+    description: source.description,
+    archetype,
+    type: source.type === 'asset' || source.type === 'event' ? source.type : inferCardType(archetype),
+    cost: source.cost ?? {},
+    immediateEffects: immediate,
+    passiveEffects: toArrayEffects(passive),
+    delayedEffects: toArrayEffects(delayed),
+    gain: source.gain,
+  };
+}
+
+function normalizeCards(cards: any[]): Card[] {
+  return cards.map(normalizeCard);
+}
+
 export function createInitialState(cards?: Card[]): GameState {
-  const source = cards ?? cardsDocument.cards;
+  const source = cards ?? normalizeCards(cardsDocument.cards as any[]);
   const ids = shuffle(source.map((c) => c.id));
   const deck = [...ids];
   const emptyDiscard: string[] = [];
@@ -55,6 +91,7 @@ export function createInitialState(cards?: Card[]): GameState {
     hand: drawn.hand,
     deck: drawn.deck,
     deckDiscard: drawn.discard,
+    activeAssets: [],
     playedCardIds: [],
     cardsPlayedThisRound: [],
     activeEventIds: [],
@@ -68,6 +105,6 @@ export function createInitialState(cards?: Card[]): GameState {
 }
 
 export function getDefaultLibrary(cards?: Card[]): CardLibrary {
-  const source = cards ?? cardsDocument.cards;
+  const source = cards ?? normalizeCards(cardsDocument.cards as any[]);
   return buildCardLibrary(source);
 }

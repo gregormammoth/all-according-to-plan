@@ -135,7 +135,7 @@ export function CardBar() {
                   <div>
                     <div className="text-sm font-black uppercase tracking-tight text-board-ink">{card.name}</div>
                     <div className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-stone-500">
-                      {card.type}
+                      {card.type} {card.archetype ? `· ${card.archetype}` : ''}
                     </div>
                   </div>
                   <div

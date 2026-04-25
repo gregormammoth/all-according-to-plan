@@ -48,7 +48,7 @@ export function PlayerHandRail({
         return (
           <button
             key={id}
-            type="button"
+            type='button'
             style={{
               minWidth: 168,
               maxWidth: 220,
@@ -69,10 +69,12 @@ export function PlayerHandRail({
               {card.description}
             </div>
             <div style={{ fontSize: 11, color: '#c9c0da', marginBottom: 4 }}>{formatCardCostLine(card.cost)}</div>
-            <div style={{ fontSize: 10, color: '#8a7fa0', lineHeight: 1.35 }}>{formatCardEffectsLine(card.effects)}</div>
-            {card.delayedEffects ? (
+            <div style={{ fontSize: 10, color: '#8a7fa0', lineHeight: 1.35 }}>
+              {card.immediateEffects ? formatCardEffectsLine(card.immediateEffects) : 'Effects: —'}
+            </div>
+            {card.delayedEffects && card.delayedEffects.length > 0 ? (
               <div style={{ fontSize: 10, color: '#6d6288', marginTop: 6, lineHeight: 1.35 }}>
-                Next round: {formatCardEffectsLine(card.delayedEffects)}
+                Next round: {card.delayedEffects.map((effects) => formatCardEffectsLine(effects)).join(' | ')}
               </div>
             ) : null}
           </button>

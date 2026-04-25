@@ -144,8 +144,22 @@ export function describeCardEffectBullets(card: Card): string[] {
     security: 'Security',
   };
   const out: string[] = [];
-  for (const key of GROUP_KEYS) {
-    appendFactionStatBullets(labels[key], card.effects[key], out);
+  const immediate = card.immediateEffects;
+  if (immediate) {
+    for (const key of GROUP_KEYS) {
+      appendFactionStatBullets(labels[key], immediate[key], out);
+    }
+  }
+  if (card.passiveEffects && card.passiveEffects.length > 0) {
+    for (const passive of card.passiveEffects) {
+      for (const key of GROUP_KEYS) {
+        const before = out.length;
+        appendFactionStatBullets(labels[key], passive[key], out);
+        if (out.length > before) {
+          out[out.length - 1] = `${out[out.length - 1]} each round`;
+        }
+      }
+    }
   }
   if (card.gain) {
     const g = card.gain;

@@ -41,20 +41,34 @@ export function playCard(library: CardLibrary, state: GameState, cardId: string)
   if (!state.hand.includes(cardId)) {
     return { ok: false, error: 'Card not in hand.' };
   }
+  if (card.type === 'asset' && state.activeAssets.includes(cardId)) {
+    return { ok: false, error: 'Asset is already active.' };
+  }
   if (!canPay(state.resources, card.cost)) {
     return { ok: false, error: 'Insufficient resources.' };
   }
   let resources = clampResourcesNonNegative(payCost(state.resources, card.cost));
-  const stats = applyStatEffects(state.stats, card.effects);
+  let stats = state.stats;
+  if (card.immediateEffects) {
+    stats = applyStatEffects(stats, card.immediateEffects);
+  }
   if (card.gain) {
     resources = clampResourcesNonNegative(applyResourceDelta(resources, card.gain));
   }
   const scheduledEffects = [...state.scheduledEffects];
-  if (card.delayedEffects) {
-    scheduledEffects.push({ firesAtRound: state.round + 1, effects: card.delayedEffects });
+  if (card.delayedEffects && card.delayedEffects.length > 0) {
+    for (const delayed of card.delayedEffects) {
+      scheduledEffects.push({ firesAtRound: state.round + 1, effects: delayed });
+    }
   }
   const nextActionIndex = state.playerActionsUsed + 1;
   const hand = state.hand.filter((id) => id !== cardId);
+  const activeAssets =
+    card.type === 'asset' && !state.activeAssets.includes(cardId)
+      ? [...state.activeAssets, cardId]
+      : state.activeAssets;
+  const deckDiscard =
+    card.type === 'event' ? [...state.deckDiscard, cardId] : state.deckDiscard;
   const playedCardIds = [...state.playedCardIds, cardId];
   const cardsPlayedThisRound = [...state.cardsPlayedThisRound, cardId];
   const log = [...state.log, `Round ${state.round} action ${nextActionIndex}: played ${card.name}`];
@@ -63,6 +77,8 @@ export function playCard(library: CardLibrary, state: GameState, cardId: string)
     stats,
     resources,
     hand,
+    activeAssets,
+    deckDiscard,
     playedCardIds,
     cardsPlayedThisRound,
     playerActionsUsed: nextActionIndex,

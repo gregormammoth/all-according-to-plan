@@ -20,6 +20,7 @@ import type { CardLibrary } from './library';
 const MOCK_EVENTS: GameEvent[] = [
   {
     id: 'mock_event_1',
+    type: 'normal',
     title: 'Riot in Capital',
     description:
       'Public unrest has erupted due to instability. Ministries scramble to assign blame while security cordons key districts.',
@@ -93,6 +94,7 @@ const MOCK_EVENTS: GameEvent[] = [
   },
   {
     id: 'mock_event_2',
+    type: 'normal',
     title: 'Black-market whispers',
     description: 'Elite donors demand quiet payoffs and backstage guarantees as contraband routes widen.',
     severity: 'high',
@@ -150,6 +152,7 @@ const MOCK_EVENTS: GameEvent[] = [
   },
   {
     id: 'mock_event_3',
+    type: 'normal',
     title: 'Loyalty rally backfires',
     description: 'Crowds cheer on camera while suspicion spreads off-screen about who staged the spectacle.',
     severity: 'low',
@@ -213,6 +216,86 @@ export type EventAckResult =
 type EventProgressResult =
   | { ok: true; state: GameState }
   | { ok: false; error: string };
+
+export function isElectionRound(round: number): boolean {
+  return round % 4 === 0 && round < 25;
+}
+
+function electionProbabilityFromStats(stats: PlayerStats): { success: number; partial: number; failure: number } {
+  const P = stats.people.satisfaction;
+  const E = stats.elites.loyalty;
+  const S = stats.security.loyalty;
+  const F = stats.people.fear;
+  const score = P * 0.5 + E * 0.3 + S * 0.2 - F * 0.2;
+  if (score >= 8) {
+    return { success: 80, partial: 15, failure: 5 };
+  }
+  if (score >= 5) {
+    return { success: 50, partial: 30, failure: 20 };
+  }
+  return { success: 20, partial: 30, failure: 50 };
+}
+
+export function createElectionEvent(state: GameState): GameEvent {
+  const probability = electionProbabilityFromStats(state.stats);
+  return {
+    id: `election_round_${state.round}`,
+    type: 'election',
+    title: 'Election Year',
+    description:
+      'A national vote is called. Public sentiment, elite backing, and security alignment determine whether your regime survives.',
+    severity: 'high',
+    condition:
+      'Election probability is weighted by people satisfaction, elite loyalty, security loyalty, and public fear.',
+    effects: {
+      people: { satisfaction: 0, loyalty: 0, fear: 0 },
+      elites: { satisfaction: 0, loyalty: 0, fear: 0 },
+      security: { satisfaction: 0, loyalty: 0, fear: 0 },
+    },
+    choices: [
+      {
+        id: 'hold_elections',
+        text: 'Hold Elections',
+        probability,
+        outcomes: {
+          success: {
+            statDeltas: {
+              people: { loyalty: 1, satisfaction: 1 },
+              elites: { loyalty: 1 },
+              security: { satisfaction: 1 },
+            },
+            resourceDeltas: { influence: 1 },
+          },
+          partial: {
+            statDeltas: {
+              people: { satisfaction: -1, fear: 1 },
+              elites: { loyalty: -1 },
+              security: { loyalty: 1 },
+            },
+            resourceDeltas: { money: -1 },
+          },
+          failure: {
+            statDeltas: {
+              people: { satisfaction: -2, loyalty: -2, fear: 2 },
+              elites: { loyalty: -2, fear: 1 },
+              security: { loyalty: -2 },
+            },
+            resourceDeltas: { influence: -2, authority: -1 },
+          },
+        },
+      },
+    ],
+    outcomePreview: {
+      success: 'The election confirms your control and extends your mandate.',
+      failure: 'You lose the election and the regime fragments immediately.',
+    },
+  };
+}
+
+function getNormalEvent(state: GameState): GameEvent | null {
+  const ev = MOCK_EVENTS[(state.round - 1) % MOCK_EVENTS.length];
+  return ev ?? null;
+}
 
 function getDefaultChoice(ev: GameEvent): EventChoice {
   return {
@@ -381,7 +464,7 @@ export function applyPassiveEffects(state: GameState, library: CardLibrary): Gam
 export function beginEventModal(state: GameState): GameState {
   if (state.phase !== 'player') return state;
   if (state.playerActionsUsed < state.maxPlayerActionsPerRound) return state;
-  const ev = MOCK_EVENTS[(state.round - 1) % MOCK_EVENTS.length];
+  const ev = isElectionRound(state.round) ? createElectionEvent(state) : getNormalEvent(state);
   if (!ev) return state;
   return {
     ...state,
@@ -450,6 +533,41 @@ export function rollPendingEvent(state: GameState): EventProgressResult {
     outcomeType,
   };
   const picked = pickOutcome(choice, diceResult);
+  if (state.pendingEvent.type === 'election' && diceResult.outcomeType === 'failure') {
+    const historyEntry = {
+      round: state.round,
+      eventId: state.pendingEvent.id,
+      title: state.pendingEvent.title,
+      description: state.pendingEvent.description,
+      outcomeLabel: 'Failure',
+    };
+    const gameResult: GameState['gameResult'] = {
+      type: 'failure',
+      score: calculateEndScore(state.stats, state.resources),
+      summaryText: 'You lost the election and your regime collapsed.',
+    };
+    const finalStatsSnapshot = computeFinalSnapshot(state.stats, state.resources, state);
+    return {
+      ok: true,
+      state: {
+        ...state,
+        phase: 'game_over',
+        pendingEvent: null,
+        pendingChoiceId: null,
+        diceResult,
+        eventStep: 'idle',
+        lastOutcomeSummary: 'Failure',
+        statChangesPreview: null,
+        resourceChangesPreview: null,
+        eventHistory: [...state.eventHistory, historyEntry],
+        lastResolvedEvent: historyEntry,
+        activeEventIds: [...state.activeEventIds, state.pendingEvent.id],
+        gameResult,
+        finalStatsSnapshot,
+        log: [...state.log, `Round ${state.round}: election failed, regime collapsed`],
+      },
+    };
+  }
   return {
     ok: true,
     state: {

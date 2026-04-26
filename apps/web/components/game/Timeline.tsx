@@ -15,6 +15,7 @@ export function Timeline({
   maxPlayerActionsPerRound,
   phase,
 }: TimelineProps) {
+  const isElectionRound = (r: number) => r % 4 === 0 && r < 25;
   const rounds = Array.from({ length: maxRounds }, (_, i) => i + 1);
   const activeRound = phase === 'game_over' ? maxRounds : Math.min(round, maxRounds);
   const actionsLeft =
@@ -53,17 +54,25 @@ export function Timeline({
           </span>
         </div>
       </div>
-      <div className="mt-4 flex gap-1 overflow-x-auto pb-1">
+      <div className="mt-4 flex gap-1 pb-1">
         {rounds.map((r) => (
           <div
             key={r}
-            className={`flex h-9 min-w-[2.25rem] shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+            className={`relative flex h-9 min-w-[2.25rem] shrink-0 items-center justify-center rounded-full text-xs font-bold ${
               r === activeRound
                 ? 'bg-yellow-400 text-black shadow-sm ring-2 ring-yellow-500/40'
-                : 'border border-stone-200 bg-stone-50 text-stone-500'
+                : isElectionRound(r)
+                  ? 'border border-amber-300 bg-amber-50 text-amber-900'
+                  : 'border border-stone-200 bg-stone-50 text-stone-500'
             }`}
+            title={isElectionRound(r) ? `Round ${r} election` : `Round ${r}`}
           >
             {r}
+            {isElectionRound(r) ? (
+              <span className='absolute -right-1 -top-1 rounded-full border border-amber-300 bg-amber-100 px-1 text-[8px] font-black leading-3 text-amber-900'>
+                E
+              </span>
+            ) : null}
           </div>
         ))}
       </div>

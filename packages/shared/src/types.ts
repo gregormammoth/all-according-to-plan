@@ -49,6 +49,7 @@ export type Card = {
 
 export type GameEvent = {
   id: string;
+  type?: 'normal' | 'election';
   title: string;
   description: string;
   severity: 'low' | 'medium' | 'high';

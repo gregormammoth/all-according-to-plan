@@ -70,6 +70,10 @@ export function EventModal() {
   const effectLines = describeGameEventEffectLines(event);
   const selectedChoice = findChoice(state);
   const selectedOutcome = outcomeFromState(state);
+  const election = event.type === 'election';
+  const panelTone = election
+    ? 'border-amber-300 bg-gradient-to-b from-amber-50 to-white'
+    : 'border-stone-200 bg-white';
   const stepTitle =
     state.eventStep === 'choice'
       ? 'Choose your response'
@@ -88,12 +92,12 @@ export function EventModal() {
       aria-labelledby="event-modal-title"
     >
       <div className="absolute inset-0 bg-stone-900/55 backdrop-blur-sm" aria-hidden="true" />
-      <div className="relative z-[1] max-h-[min(88vh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl">
+      <div className={`relative z-[1] max-h-[min(88vh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border p-6 shadow-2xl ${panelTone}`}>
         <div className="text-[11px] font-bold uppercase tracking-widest text-stone-500">
-          Severity: {event.severity} · Step: {stepTitle}
+          {election ? 'Special event · Election' : `Severity: ${event.severity}`} · Step: {stepTitle}
         </div>
         <h2 id="event-modal-title" className="mt-2 text-2xl font-black tracking-tight text-board-ink">
-          {event.title}
+          {election ? 'Election Year' : event.title}
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-stone-700">{event.description}</p>
         {event.condition ? (
@@ -112,7 +116,7 @@ export function EventModal() {
                   key={choice.id}
                   type="button"
                   onClick={() => selectEventChoice(choice.id)}
-                  className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-3 text-left hover:bg-stone-100"
+                  className={`w-full rounded-lg border px-3 py-3 text-left ${election ? 'border-amber-200 bg-amber-50 hover:bg-amber-100' : 'border-stone-200 bg-stone-50 hover:bg-stone-100'}`}
                 >
                   <div className="text-sm font-semibold text-stone-900">{choice.text}</div>
                   <div className="mt-1 text-xs text-stone-500">

@@ -73,6 +73,10 @@ function performanceText(result: GameResult, snapshot: FinalStatsSnapshot): stri
   return 'You balanced faction pressure enough to survive, though systemic weaknesses remain.';
 }
 
+function isElectionEntry(eventId: string, title: string): boolean {
+  return eventId.startsWith('election_round_') || title.toLowerCase().includes('election');
+}
+
 export function GameOverScreen() {
   const state = useGameStore((s) => s.state);
   const reset = useGameStore((s) => s.reset);
@@ -222,8 +226,15 @@ export function GameOverScreen() {
                   .sort((a, b) => a.round - b.round)
                   .map((e, i) => (
                     <div key={`${e.eventId}-${e.round}-${i}`} className='rounded-lg border border-stone-100 bg-stone-50 px-3 py-2 text-xs'>
-                      <div className='font-semibold text-stone-800'>
-                        Round {e.round} - {e.title}
+                      <div className='flex items-center gap-2 font-semibold text-stone-800'>
+                        <span>
+                          Round {e.round} - {e.title}
+                        </span>
+                        {isElectionEntry(e.eventId, e.title) ? (
+                          <span className='rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900'>
+                            Election
+                          </span>
+                        ) : null}
                       </div>
                       {e.outcomeLabel ? <div className='mt-0.5 text-stone-500'>{e.outcomeLabel}</div> : null}
                     </div>

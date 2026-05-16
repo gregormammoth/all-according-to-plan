@@ -1,14 +1,14 @@
 'use client';
-
-import { useRef } from 'react';
 import {
   MAX_HAND_CARDS,
   canPay,
   describeCardEffectBullets,
   type CardCost,
 } from '@all-according-to-plan/shared';
+import { useAudio } from '@/audio/useAudio';
 import { cardFrameClass, cardTypeBadgeClass } from '@/lib/cardFrame';
 import { useGameStore } from '@/state/gameStore';
+import { useRef } from 'react';
 
 function formatCostBold(cost: CardCost) {
   const bits: string[] = [];
@@ -20,12 +20,14 @@ function formatCostBold(cost: CardCost) {
 
 export function CardBar() {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastHoverId = useRef<string | null>(null);
+  const { play: playSfx } = useAudio();
   const state = useGameStore((s) => s.state);
   const library = useGameStore((s) => s.library);
   const error = useGameStore((s) => s.error);
   const playSelectMode = useGameStore((s) => s.playSelectMode);
   const togglePlaySelectMode = useGameStore((s) => s.togglePlaySelectMode);
-  const play = useGameStore((s) => s.play);
+  const playCard = useGameStore((s) => s.play);
   const draw = useGameStore((s) => s.draw);
   const gain = useGameStore((s) => s.gain);
   const actionsRemaining =
@@ -76,7 +78,10 @@ export function CardBar() {
             <button
               type="button"
               disabled={dead || state.deck.length === 0}
-              onClick={() => draw()}
+              onClick={() => {
+                playSfx('draw_card');
+                draw();
+              }}
               className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wide text-stone-800 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Draw card
@@ -84,7 +89,10 @@ export function CardBar() {
             <button
               type="button"
               disabled={dead}
-              onClick={() => gain('money')}
+              onClick={() => {
+                playSfx('resource_gain');
+                gain('money');
+              }}
               className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wide text-stone-800 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Gain +1 money
@@ -126,7 +134,18 @@ export function CardBar() {
                 key={id}
                 type="button"
                 disabled={disabled}
-                onClick={() => play(id)}
+                onMouseEnter={() => {
+                  if (disabled || lastHoverId.current === id) return;
+                  lastHoverId.current = id;
+                  playSfx('card_hover');
+                }}
+                onMouseLeave={() => {
+                  if (lastHoverId.current === id) lastHoverId.current = null;
+                }}
+                onClick={() => {
+                  playSfx('card_play');
+                  playCard(id);
+                }}
                 className={`flex w-[min(100%,220px)] shrink-0 flex-col rounded-xl border-2 p-3 text-left shadow-sm transition ${cardFrameClass(
                   card.type
                 )} ${highlighted ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-white' : ''} disabled:cursor-not-allowed disabled:opacity-45`}

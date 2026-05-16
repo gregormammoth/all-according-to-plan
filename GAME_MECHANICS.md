@@ -1,153 +1,295 @@
-# All According to Plan - Game Mechanics
+# Game Mechanics Reference
 
-## Core Objective
-The player governs a fragile authoritarian state across a fixed-length campaign. Each round, the player spends a limited action budget to stabilize faction dynamics while preserving resources. The run ends after round 25.
+Engine source of truth: `packages/game-engine` and `packages/shared`. The web client mirrors `GameState` and must not invent rules locally.
 
-## Campaign Structure
-- Total rounds: 25
-- Actions per round: 3
-- Main phases:
-  - Player phase
-  - Event modal phase
-  - End-of-round upkeep and transition
+---
 
-## Factions and Stats
-The simulation tracks three factions:
-- People
-- Elites
-- Security
+## Objective
 
-Each faction has three stats (clamped to 0..10):
-- Satisfaction
-- Loyalty
-- Fear
+Govern an authoritarian state for **25 rounds** with **3 actions per round**, then resolve a mandatory **event** each round. Win, survive, or fail based on final faction health, stability index, and special election failure.
 
-Many cards and events push these values up or down. A derived stability index summarizes overall state pressure for UI feedback.
+---
+
+## Turn structure
+
+### Player phase (`phase: 'player'`)
+
+- `playerActionsUsed` starts at 0 each round.
+- `maxPlayerActionsPerRound` is 3.
+- Valid actions: `playCard`, `drawCard`, `gainResource`.
+- When `playerActionsUsed` reaches 3 after any action, `beginEventModal` runs immediately.
+
+### Event modal phase (`phase: 'event_modal'`)
+
+`eventStep` progression:
+
+| Step | Player action | Engine function |
+|------|---------------|-----------------|
+| `choice` | Select a response | `chooseEventChoice(state, choiceId)` |
+| `rolling` | (UI triggers roll) | `rollPendingEvent(state)` |
+| `revealed` | (UI applies preview) | `applyRevealedOutcome(state)` |
+| `applied` | Continue | `continueAfterAppliedEvent(library, state)` |
+
+Event choices have **no resource cost** in the current build.
+
+### Game over (`phase: 'game_over'`)
+
+Terminal. No player actions. `gameResult` and `finalStatsSnapshot` are set.
+
+---
+
+## Factions and stats
+
+Groups: `people`, `elites`, `security`.
+
+Per group: `satisfaction`, `loyalty`, `fear` — each clamped to `[STAT_MIN, STAT_MAX]` = `[0, 10]`.
+
+Helpers in `@all-according-to-plan/shared`: `applyStatEffects`, `clampStats`, `clampGroupStats`.
+
+---
 
 ## Resources
-The player manages three resources:
-- Money
-- Influence
-- Authority
 
-Rules:
-- Card costs are paid from these resources
-- Resources cannot go below zero
-- Some cards and events grant or remove resources
+`money`, `influence`, `authority` — non-negative after any delta (`clampResourcesNonNegative`).
 
-## Deck and Hand System
-The run uses a shuffled deck of card ids built from shared card data.
+`canPay` / `payCost` gate card plays.
 
-Hand rules:
-- Maximum hand size: 8
-- Starting hand: 5
-- Draw action draws one card
-- If hand is full when drawing, the drawn card is burned to discard
+---
 
-Deck state:
-- `hand`: cards currently available to play
-- `deck`: remaining draw pile
-- `deckDiscard`: burned/overflow cards
-- `playedCardIds`: permanent play history
-- `cardsPlayedThisRound`: round-local play history
+## Player actions
 
-## Player Actions (Exactly 3 per Round)
-Each action consumes one action point. Available actions:
+### Play card (`playCard`)
 
-### 1) Play Card
-- Card must be in hand
-- Card cost must be affordable
-- On success:
-  - cost is paid
-  - immediate faction effects are applied
-  - optional card resource gain is applied
-  - optional delayed effects are scheduled for next round
-  - card is removed from hand
+ Preconditions: `player` phase, actions remaining, card in hand, affordable cost, asset not already active.
 
-### 2) Draw Card
-- Draw one card from deck
-- If deck is empty, action is rejected
-- If hand is at cap, card is burned to discard
+ On success:
 
-### 3) Gain Resource
-- Choose one:
-  - money
-  - influence
-  - authority
-- Gain +1 of selected resource
+1. Pay `card.cost`.
+2. Apply `immediateEffects` to stats.
+3. Apply `gain` to resources if present.
+4. For each entry in `delayedEffects`, push `{ firesAtRound: round + 1, effects }` onto `scheduledEffects`.
+5. Remove card from `hand`.
+6. If `card.type === 'asset'`: append to `activeAssets` (not discard).
+7. If `card.type === 'event'`: append to `deckDiscard`.
+8. Append to `playedCardIds` and `cardsPlayedThisRound`.
+9. Increment `playerActionsUsed`; if 3, open event modal.
 
-## Events and Modal Gating
-After the third action, the game does not immediately advance. It enters `event_modal` phase.
+### Draw card (`drawCard`)
 
-Flow:
-1. Event for current round is selected
-2. `pendingEvent` is set
-3. UI opens blocking event modal
-4. Player must press Continue
+Uses `drawOneCard` with reshuffle options `{ gameSeed, round, reshuffleCount }`.
 
-Only after acknowledgment does the engine resolve event consequences and advance the round.
+- Empty deck + empty discard → error.
+- Hand full → drawn card goes to discard (**burned**), hand unchanged.
 
-## End-of-Round Resolution Order
-When the event modal is acknowledged, the engine resolves in this order:
-1. Apply event faction effects
-2. Apply event resource deltas
-3. Apply instability drift
-4. Bonus draw (1 card, respecting hand cap and burn rule)
-5. Upkeep gain: +1 money
-6. Record event in history and last-resolved snapshot
-7. Advance round and reset player actions
-8. Apply scheduled delayed effects due at the new round
+### Gain resource (`gainResource`)
 
-## Delayed Effects
-Some cards define `delayedEffects`.
++1 to selected resource type.
 
-Rules:
-- On play, delayed effects are scheduled for `round + 1`
-- During round transition, any effects due at the new round are applied automatically
-- Applied delayed effects are removed from the schedule
+---
 
-## Phase Rules
-- `player`: actions available
-- `event_modal`: action UI disabled until acknowledgment
-- `game_over`: terminal state after final round resolution
+## Cards (data model)
 
-## Round End and Game Over
-If current round is 25 when event resolution occurs:
-- final event and upkeep are still resolved
-- phase becomes `game_over`
-- no further actions are possible
+Defined in `packages/shared/src/types.ts` and `data/cards.json`.
 
-## Error and Validation Rules
-The engine returns explicit errors for invalid requests, including:
-- not in player phase
-- no actions remaining
-- unknown card
-- card not in hand
-- insufficient resources
-- empty deck on draw
-- no pending event to acknowledge
+```ts
+type Card = {
+  id: string;
+  name: string;
+  description: string;
+  type: 'asset' | 'event';
+  archetype?: string;
+  cost: Partial<Resources>;
+  immediateEffects?: CardEffects;
+  passiveEffects?: CardEffects[];
+  gain?: Partial<Resources>;
+  delayedEffects?: CardEffects[];
+};
+```
 
-## UI Behavioral Notes
-The web client mirrors engine state and enforces clarity:
-- Hand cards are visually marked playable/non-playable by affordability and phase
-- Action controls disable in event modal and game over
-- Event modal blocks progression until Continue
-- Timeline and advisor panels reflect current phase and round
+### Normalization (`state.ts`)
 
-## State Snapshot Summary
-Key fields in `GameState`:
-- `round`, `maxRounds`
-- `playerActionsUsed`, `maxPlayerActionsPerRound`
-- `phase`, `pendingEvent`
-- `stats`, `resources`
-- `hand`, `deck`, `deckDiscard`
-- `playedCardIds`, `cardsPlayedThisRound`
-- `eventHistory`, `lastResolvedEvent`
-- `scheduledEffects`, `log`
+JSON may use legacy `type: 'propaganda'` etc. and `effects` instead of `immediateEffects`. The engine maps:
 
-## Design Intent
-The system is designed to feel like a structured tabletop loop:
-- strict action economy
-- constrained hand management
-- visible consequence windows via events
-- deterministic, pure engine transitions independent from React
+- Explicit `asset` / `event` → use as-is.
+- Else: `economy`, `strategy`, `social` → **asset**; other archetypes → **event**.
+- `effects` → `immediateEffects`.
+
+### Passive assets
+
+`applyPassiveEffects` runs at the start of a **new** round (after round increment in `continueAfterAppliedEvent`), iterating `activeAssets` and applying each card’s `passiveEffects[]`.
+
+---
+
+## Deck and hand
+
+| Constant | Value |
+|----------|-------|
+| `MAX_HAND_CARDS` | 8 |
+| `OPENING_HAND_CARDS` | 5 |
+| `PLAYER_ACTIONS_PER_ROUND` | 3 |
+
+Initial deck: shuffled card IDs from library (`shuffle` at campaign start).
+
+### Reshuffle
+
+When `deck.length === 0` and `discard.length > 0` during a draw:
+
+- `reshuffleCount` increments.
+- Seed: `hash32(\`${gameSeed}:${round}:reshuffle:${reshuffleCount}\`)`.
+- Discard is Fisher–Yates shuffled into new deck; discard cleared.
+
+### Draw outcomes
+
+| Situation | Result |
+|-----------|--------|
+| Hand &lt; max, card on deck | Card added to hand |
+| Hand = max | Card to discard (burned) |
+| Deck empty, no discard | No card drawn |
+
+`drawUntilHandSize` (opening hand) does not use reshuffle seeding — only mid-game draws via `drawOneCard` with options.
+
+---
+
+## Events
+
+### Selection
+
+- **Election rounds:** `isElectionRound(round)` → `round % 4 === 0 && round < 25`.
+  - `createElectionEvent(state)` with dynamic probabilities from stats.
+- **Other rounds:** `MOCK_EVENTS[(round - 1) % length]`.
+
+### Choices and dice
+
+Each choice defines:
+
+```ts
+probability: { success, partial, failure }  // percent bands, sum ≤ 100
+outcomes: { success, partial, failure }       // statDeltas + resourceDeltas
+```
+
+`deterministicRollPercent(gameSeed, round, choiceId)` → integer 1–100.
+
+Outcome bands:
+
+- `roll <= success` → success
+- `roll <= success + partial` → partial_success
+- else → failure
+
+### Election failure (instant game over)
+
+If `pendingEvent.type === 'election'` and dice outcome is `failure`:
+
+- `phase` → `game_over` immediately (no `continueAfterAppliedEvent` upkeep).
+- `gameResult.type` = `failure`, summary about lost election.
+
+### Normal event failure
+
+Does not end the run unless combined with collapse at round end.
+
+---
+
+## End of round (`continueAfterAppliedEvent`)
+
+After `eventStep === 'applied'`:
+
+1. `applyInstabilityDrift`: per faction satisfaction −0.15, loyalty −0.1, fear +0.1.
+2. Bonus `drawOneCard` (with reshuffle).
+3. `+1 money` upkeep.
+4. Push `eventHistory` entry.
+5. **If** `round >= maxRounds` **or** `isFailureState(stats)`:
+   - `computeGameResult` → victory / survival / failure
+   - `finalStatsSnapshot`, `game_over`, clear pending event fields.
+6. **Else**:
+   - `nextRound = round + 1`
+   - `applyDueScheduled(stats, scheduledEffects, nextRound)`
+   - `applyPassiveEffects` for new round
+   - Reset `playerActionsUsed`, `cardsPlayedThisRound`, `phase: 'player'`
+
+### Failure check
+
+`isFailureState`: all of `people.satisfaction`, `elites.satisfaction`, `security.satisfaction` ≤ 0.
+
+### Victory / survival
+
+- `stabilityIndex(stats)`: average per faction of `((satisfaction + loyalty - fear + 20) / 30) * 100`.
+- `stable >= 62` → victory; else survival (if not failure).
+
+### Score
+
+`round(people.satisfaction×2 + elites.loyalty×2 + security.fear + money + influence + authority)`
+
+---
+
+## Scheduled effects
+
+On play, each `delayedEffects` block schedules:
+
+```ts
+{ firesAtRound: currentRound + 1, effects: block }
+```
+
+At round transition, effects with `firesAtRound === nextRound` are applied via `applyStatEffects` and removed from the queue.
+
+---
+
+## Deterministic RNG
+
+`packages/game-engine/src/rng.ts`:
+
+- `hash32(string)` for seeds
+- `createSeededRng(seed)` — mulberry32
+- `deterministicRollPercent(gameSeed, round, choiceId)` for event dice
+- Deck reshuffle uses `gameSeed:round:reshuffle:reshuffleCount`
+
+Campaign `gameSeed` defaults to `1337` in `createInitialState`.
+
+---
+
+## Validation errors (examples)
+
+| Error | Cause |
+|-------|--------|
+| `Not in player phase` | Action during event modal or game over |
+| `No actions remaining` | Fourth action attempt |
+| `Insufficient resources` | Cannot pay card cost |
+| `Asset is already active` | Replay same asset |
+| `Deck is empty` | Draw with empty deck and discard |
+| `No event is awaiting choice` | Wrong event step / phase |
+
+---
+
+## GameState fields (summary)
+
+| Field | Purpose |
+|-------|---------|
+| `round`, `maxRounds` | Campaign progress |
+| `phase`, `eventStep` | UI gating |
+| `gameSeed`, `reshuffleCount` | Deterministic deck/events |
+| `pendingEvent`, `pendingChoiceId`, `diceResult` | Event modal |
+| `statChangesPreview`, `resourceChangesPreview` | Pre-apply outcome |
+| `stats`, `resources` | Core simulation |
+| `hand`, `deck`, `deckDiscard` | Card zones |
+| `activeAssets` | Persistent assets |
+| `playedCardIds`, `cardsPlayedThisRound` | History / UI |
+| `scheduledEffects` | Delayed card effects |
+| `eventHistory`, `lastResolvedEvent`, `activeEventIds` | Events |
+| `gameResult`, `finalStatsSnapshot` | End screen |
+| `log` | Text trace |
+
+---
+
+## API note
+
+`apps/api` exposes placeholder endpoints; full `GameState` serialization is not required for local play — the web client runs the engine in-browser via Zustand.
+
+---
+
+## UI mapping (web)
+
+| Engine phase | UI behavior |
+|--------------|-------------|
+| `player` | Card bar + draw/gain enabled |
+| `event_modal` | `EventModal` blocks; actions disabled |
+| `game_over` | `GameOverScreen` replaces playfield |
+
+Event modal auto-advances `rolling` → `revealed` → `applied` with timed steps; player confirms at choice and continue.

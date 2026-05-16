@@ -1,5 +1,10 @@
+import { AudioProvider } from '@/components/audio/AudioProvider';
 import { GameShell } from '@/components/game/GameShell';
 
 export default function HomePage() {
-  return <GameShell />;
+  return (
+    <AudioProvider>
+      <GameShell />
+    </AudioProvider>
+  );
 }

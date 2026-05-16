@@ -1,5 +1,7 @@
 'use client';
 
+import { AudioSettings } from '@/components/audio/AudioSettings';
+import { AudioUnlockBanner } from '@/components/audio/AudioUnlockBanner';
 import { CardBar } from '@/components/game/CardBar';
 import { CrisisPanel } from '@/components/game/CrisisPanel';
 import { EventModal } from '@/components/game/EventModal';
@@ -9,10 +11,12 @@ import { PlayedCards } from '@/components/game/PlayedCards';
 import { Timeline } from '@/components/game/Timeline';
 import { AdvisorPanel } from '@/components/game/AdvisorPanel';
 import { CastleScene } from '@/components/three/CastleScene';
+import { useGameAudio } from '@/audio/useGameAudio';
 import { useGameStore } from '@/state/gameStore';
 import { calculateStabilityIndex } from '@all-according-to-plan/shared';
 
 export function GameShell() {
+  useGameAudio();
   const round = useGameStore((s) => s.state.round);
   const maxRounds = useGameStore((s) => s.state.maxRounds);
   const playerActionsUsed = useGameStore((s) => s.state.playerActionsUsed);
@@ -21,13 +25,25 @@ export function GameShell() {
   const stats = useGameStore((s) => s.state.stats);
   const stability = calculateStabilityIndex(stats);
   if (phase === 'game_over') {
-    return <GameOverScreen />;
+    return (
+      <>
+        <AudioUnlockBanner />
+        <div className="fixed right-4 top-4 z-[3000]">
+          <AudioSettings />
+        </div>
+        <GameOverScreen />
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen bg-board-cream">
+      <AudioUnlockBanner />
       <EventModal />
       <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-3 py-4 md:px-4">
+        <div className="flex justify-end">
+          <AudioSettings />
+        </div>
         <Timeline
           round={round}
           maxRounds={maxRounds}

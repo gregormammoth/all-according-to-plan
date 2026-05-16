@@ -11,9 +11,12 @@ import { PlayedCards } from '@/components/game/PlayedCards';
 import { Timeline } from '@/components/game/Timeline';
 import { AdvisorPanel } from '@/components/game/AdvisorPanel';
 import { CastleScene } from '@/components/three/CastleScene';
+import { Atmosphere } from '@/components/ui/Atmosphere';
 import { useGameAudio } from '@/audio/useGameAudio';
 import { useGameStore } from '@/state/gameStore';
 import { calculateStabilityIndex } from '@all-according-to-plan/shared';
+import { cn } from '@/lib/ui/cn';
+import { statHud } from '@/lib/ui/variants';
 
 export function GameShell() {
   useGameAudio();
@@ -24,9 +27,11 @@ export function GameShell() {
   const phase = useGameStore((s) => s.state.phase);
   const stats = useGameStore((s) => s.state.stats);
   const stability = calculateStabilityIndex(stats);
+
   if (phase === 'game_over') {
     return (
       <>
+        <Atmosphere />
         <AudioUnlockBanner />
         <div className="fixed right-4 top-4 z-[3000]">
           <AudioSettings />
@@ -37,10 +42,11 @@ export function GameShell() {
   }
 
   return (
-    <div className="min-h-screen bg-board-cream">
+    <div className="game-shell relative">
+      <Atmosphere />
       <AudioUnlockBanner />
       <EventModal />
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-3 py-4 md:px-4">
+      <div className="relative z-[2] mx-auto flex max-w-[1600px] flex-col gap-4 px-3 py-4 md:px-4">
         <div className="flex justify-end">
           <AudioSettings />
         </div>
@@ -57,22 +63,29 @@ export function GameShell() {
             <PlayedCards />
           </aside>
           <main className="col-span-4 min-h-[280px] lg:min-h-[420px]">
-            <div className="relative h-[300px] w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm sm:h-[360px] lg:h-[440px]">
+            <div className="relative h-[300px] w-full overflow-hidden rounded-lg border border-state-steel/60 bg-scene-frame shadow-panel-deep sm:h-[360px] lg:h-[440px]">
               <CastleScene />
+              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_60%,rgba(12,13,14,0.5)_100%)]" />
               <div className="pointer-events-none absolute inset-y-6 right-3 z-10 flex flex-col gap-2">
-                <div className="rounded-md border border-emerald-200 bg-emerald-50/95 px-2 py-2 text-center shadow-sm backdrop-blur-sm">
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-emerald-800">Stability</div>
-                  <div className="text-sm font-black text-emerald-900">{stability}</div>
+                <div className={cn(statHud, 'border-faction-people/30')}>
+                  <div className="text-[9px] font-display font-bold uppercase tracking-label text-faction-people">
+                    Stability
+                  </div>
+                  <div className="font-display text-sm font-bold text-board-ink">{stability}</div>
                 </div>
-                <div className="rounded-md border border-rose-200 bg-rose-50/95 px-2 py-2 text-center shadow-sm backdrop-blur-sm">
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-rose-800">Unity</div>
-                  <div className="text-sm font-black text-rose-900">
+                <div className={cn(statHud, 'border-state-gold/30')}>
+                  <div className="text-[9px] font-display font-bold uppercase tracking-label text-state-gold">
+                    Unity
+                  </div>
+                  <div className="font-display text-sm font-bold text-board-ink">
                     {Math.round((stats.people.loyalty + stats.elites.loyalty) / 2)}
                   </div>
                 </div>
-                <div className="rounded-md border border-sky-200 bg-sky-50/95 px-2 py-2 text-center shadow-sm backdrop-blur-sm">
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-sky-800">Security</div>
-                  <div className="text-sm font-black text-sky-900">
+                <div className={cn(statHud, 'border-faction-security/30')}>
+                  <div className="text-[9px] font-display font-bold uppercase tracking-label text-faction-security">
+                    Security
+                  </div>
+                  <div className="font-display text-sm font-bold text-board-ink">
                     {Math.round((stats.security.loyalty + stats.security.fear) / 2)}
                   </div>
                 </div>

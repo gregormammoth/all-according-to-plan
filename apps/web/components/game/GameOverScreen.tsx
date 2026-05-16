@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FinalStatsSnapshot, GameResult } from '@all-according-to-plan/shared';
 import { useGameStore } from '@/state/gameStore';
+import { Button } from '@/components/ui/Button';
+import { Panel } from '@/components/ui/Panel';
+import { cn } from '@/lib/ui/cn';
+import { bodyMuted, labelMeta, labelSection, panelInset, pillVariant } from '@/lib/ui/variants';
 
 type AnimatedSnapshot = {
   peopleSatisfaction: number;
@@ -38,24 +42,24 @@ function tintByResult(result: GameResult) {
   if (result.type === 'victory') {
     return {
       title: 'Victory',
-      shell: 'from-emerald-50 via-amber-50 to-emerald-100',
-      accent: 'text-emerald-800',
-      badge: 'border-emerald-300 bg-emerald-100 text-emerald-900',
+      shell: 'from-state-olive/20 via-state-charcoal to-state-graphite',
+      accent: 'text-faction-people',
+      badge: 'authority' as const,
     };
   }
   if (result.type === 'failure') {
     return {
       title: 'Collapse',
-      shell: 'from-rose-50 via-orange-50 to-rose-100',
-      accent: 'text-rose-800',
-      badge: 'border-rose-300 bg-rose-100 text-rose-900',
+      shell: 'from-faction-danger/15 via-state-charcoal to-state-void',
+      accent: 'text-faction-danger',
+      badge: 'danger' as const,
     };
   }
   return {
     title: 'Managed Survival',
-    shell: 'from-amber-50 via-stone-50 to-amber-100',
-    accent: 'text-amber-800',
-    badge: 'border-amber-300 bg-amber-100 text-amber-900',
+    shell: 'from-state-amber/10 via-state-charcoal to-state-graphite',
+    accent: 'text-state-amber',
+    badge: 'election' as const,
   };
 }
 
@@ -123,146 +127,134 @@ export function GameOverScreen() {
 
   if (!result || !snapshot || !look) {
     return (
-      <div className='min-h-screen bg-board-cream px-4 py-8'>
-        <div className='mx-auto max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm'>
-          <h2 className='text-2xl font-black text-stone-900'>Campaign complete</h2>
-          <button
-            type='button'
-            className='mt-4 rounded-xl border-2 border-yellow-500 bg-yellow-400 px-4 py-2 text-sm font-black uppercase tracking-wide text-black'
-            onClick={() => reset()}
-          >
-            Start new game
-          </button>
-        </div>
+      <div className="min-h-screen px-4 py-8">
+        <Panel className="mx-auto max-w-5xl">
+          <h2 className="font-display text-2xl font-bold text-board-ink">Campaign complete</h2>
+          <Button variant="primary" className="mt-4" onClick={() => reset()}>
+            New campaign
+          </Button>
+        </Panel>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b ${look.shell} px-4 py-8 text-stone-900`}>
+    <div className={cn('min-h-screen bg-gradient-to-b px-4 py-8', look.shell)}>
       <div
-        className={`mx-auto flex max-w-6xl flex-col gap-4 transition-all duration-500 ${
+        className={cn(
+          'mx-auto flex max-w-6xl flex-col gap-4 transition-all duration-slow ease-ui-out',
           entered ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
-        }`}
+        )}
       >
-        <section className='rounded-2xl border border-stone-200 bg-white p-6 shadow-lg'>
-          <div className='flex flex-wrap items-start justify-between gap-3'>
+        <Panel>
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className={`text-4xl font-black tracking-tight ${look.accent}`}>{look.title}</h1>
-              <p className='mt-2 text-sm text-stone-700'>{result.summaryText}</p>
+              <p className={labelMeta}>Final assessment</p>
+              <h1 className={cn('mt-1 font-display text-4xl font-bold tracking-tight', look.accent)}>{look.title}</h1>
+              <p className={cn(bodyMuted, 'mt-2')}>{result.summaryText}</p>
             </div>
-            <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-widest ${look.badge}`}>
-              Score {result.score}
-            </span>
+            <span className={pillVariant(look.badge)}>Score {result.score}</span>
           </div>
-        </section>
+        </Panel>
 
-        <section className='grid grid-cols-1 gap-4 lg:grid-cols-12'>
-          <div className='space-y-4 lg:col-span-8'>
-            <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
-              <div className='rounded-xl border border-stone-200 bg-white p-4 shadow-sm'>
-                <h3 className='text-xs font-bold uppercase tracking-widest text-stone-600'>People</h3>
-                <div className='mt-2 space-y-1 text-sm'>
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+          <div className="space-y-4 lg:col-span-8">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Panel className="!p-4">
+                <h3 className={cn(labelMeta, 'text-faction-people')}>People</h3>
+                <div className="mt-2 space-y-1 text-sm text-state-paper">
                   <div>Satisfaction {animated.peopleSatisfaction}</div>
                   <div>Loyalty {animated.peopleLoyalty}</div>
                   <div>Fear {animated.peopleFear}</div>
                 </div>
-              </div>
-              <div className='rounded-xl border border-stone-200 bg-white p-4 shadow-sm'>
-                <h3 className='text-xs font-bold uppercase tracking-widest text-stone-600'>Elites</h3>
-                <div className='mt-2 space-y-1 text-sm'>
+              </Panel>
+              <Panel className="!p-4">
+                <h3 className={cn(labelMeta, 'text-state-gold')}>Elites</h3>
+                <div className="mt-2 space-y-1 text-sm text-state-paper">
                   <div>Satisfaction {animated.elitesSatisfaction}</div>
                   <div>Loyalty {animated.elitesLoyalty}</div>
                   <div>Fear {animated.elitesFear}</div>
                 </div>
-              </div>
-              <div className='rounded-xl border border-stone-200 bg-white p-4 shadow-sm'>
-                <h3 className='text-xs font-bold uppercase tracking-widest text-stone-600'>Security</h3>
-                <div className='mt-2 space-y-1 text-sm'>
+              </Panel>
+              <Panel className="!p-4">
+                <h3 className={cn(labelMeta, 'text-faction-security')}>Security</h3>
+                <div className="mt-2 space-y-1 text-sm text-state-paper">
                   <div>Satisfaction {animated.securitySatisfaction}</div>
                   <div>Loyalty {animated.securityLoyalty}</div>
                   <div>Fear {animated.securityFear}</div>
                 </div>
-              </div>
+              </Panel>
             </div>
 
-            <div className='rounded-xl border border-stone-200 bg-white p-4 shadow-sm'>
-              <h3 className='text-xs font-bold uppercase tracking-widest text-stone-600'>Resources</h3>
-              <div className='mt-3 grid grid-cols-3 gap-3 text-center'>
-                <div className='rounded-lg border border-stone-100 bg-stone-50 p-3'>
-                  <div className='text-[10px] uppercase text-stone-500'>Money</div>
-                  <div className='text-2xl font-black'>$ {animated.money}</div>
+            <Panel className="!p-4">
+              <h3 className={labelSection}>Resources</h3>
+              <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+                <div className={cn(panelInset, 'p-3')}>
+                  <p className={labelMeta}>Money</p>
+                  <p className="font-display text-2xl font-bold text-state-amber">$ {animated.money}</p>
                 </div>
-                <div className='rounded-lg border border-stone-100 bg-stone-50 p-3'>
-                  <div className='text-[10px] uppercase text-stone-500'>Influence</div>
-                  <div className='text-2xl font-black'>{animated.influence}</div>
+                <div className={cn(panelInset, 'p-3')}>
+                  <p className={labelMeta}>Influence</p>
+                  <p className="font-display text-2xl font-bold text-board-ink">{animated.influence}</p>
                 </div>
-                <div className='rounded-lg border border-stone-100 bg-stone-50 p-3'>
-                  <div className='text-[10px] uppercase text-stone-500'>Authority</div>
-                  <div className='text-2xl font-black'>{animated.authority}</div>
+                <div className={cn(panelInset, 'p-3')}>
+                  <p className={labelMeta}>Authority</p>
+                  <p className="font-display text-2xl font-bold text-board-ink">{animated.authority}</p>
                 </div>
               </div>
-              <div className='mt-4 flex flex-wrap gap-3 text-xs text-stone-600'>
-                <span className='rounded-full border border-stone-200 bg-stone-50 px-3 py-1'>
-                  Total cards played {snapshot.totalCardsPlayed}
-                </span>
-                <span className='rounded-full border border-stone-200 bg-stone-50 px-3 py-1'>
-                  Events resolved {snapshot.totalEvents}
-                </span>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <span className={pillVariant('neutral')}>Cards played {snapshot.totalCardsPlayed}</span>
+                <span className={pillVariant('neutral')}>Events {snapshot.totalEvents}</span>
               </div>
-            </div>
+            </Panel>
           </div>
 
-          <div className='space-y-4 lg:col-span-4'>
-            <div className='rounded-xl border border-stone-200 bg-white p-4 shadow-sm'>
-              <h3 className='text-xs font-bold uppercase tracking-widest text-stone-600'>Performance</h3>
-              <div className='mt-3 text-3xl font-black text-board-ink'>{result.score}</div>
-              <p className='mt-2 text-sm text-stone-700'>{performanceText(result, snapshot)}</p>
-            </div>
-            <div className='rounded-xl border border-stone-200 bg-white p-4 shadow-sm'>
-              <h3 className='text-xs font-bold uppercase tracking-widest text-stone-600'>Timeline</h3>
-              <div className='mt-3 max-h-[280px] space-y-2 overflow-y-auto pr-1'>
+          <div className="space-y-4 lg:col-span-4">
+            <Panel className="!p-4">
+              <h3 className={labelSection}>Performance</h3>
+              <div className="mt-3 font-display text-3xl font-bold text-board-ink">{result.score}</div>
+              <p className={cn(bodyMuted, 'mt-2')}>{performanceText(result, snapshot)}</p>
+            </Panel>
+            <Panel className="!p-4">
+              <h3 className={labelSection}>Timeline</h3>
+              <div className="mt-3 max-h-[280px] space-y-2 overflow-y-auto pr-1">
                 {[...timeline]
                   .sort((a, b) => a.round - b.round)
                   .map((e, i) => (
-                    <div key={`${e.eventId}-${e.round}-${i}`} className='rounded-lg border border-stone-100 bg-stone-50 px-3 py-2 text-xs'>
-                      <div className='flex items-center gap-2 font-semibold text-stone-800'>
+                    <div key={`${e.eventId}-${e.round}-${i}`} className={cn(panelInset, 'px-3 py-2 text-xs')}>
+                      <div className="flex items-center gap-2 font-semibold text-board-ink">
                         <span>
-                          Round {e.round} - {e.title}
+                          Cycle {e.round} — {e.title}
                         </span>
                         {isElectionEntry(e.eventId, e.title) ? (
-                          <span className='rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900'>
-                            Election
-                          </span>
+                          <span className={pillVariant('election')}>Election</span>
                         ) : null}
                       </div>
-                      {e.outcomeLabel ? <div className='mt-0.5 text-stone-500'>{e.outcomeLabel}</div> : null}
+                      {e.outcomeLabel ? <p className="mt-0.5 text-state-paper-dim">{e.outcomeLabel}</p> : null}
                     </div>
                   ))}
               </div>
-            </div>
+            </Panel>
           </div>
         </section>
 
-        <section className='rounded-2xl border border-stone-200 bg-white p-4 shadow-sm'>
-          <div className='flex flex-wrap items-center gap-3'>
-            <button
-              type='button'
-              className='rounded-xl border-2 border-yellow-500 bg-yellow-400 px-5 py-2 text-sm font-black uppercase tracking-wide text-black shadow-sm hover:bg-yellow-300'
-              onClick={() => reset()}
-            >
-              Start new game
-            </button>
-            <details className='text-xs text-stone-600'>
-              <summary className='cursor-pointer font-semibold uppercase tracking-wide'>View detailed log</summary>
-              <div className='mt-2 max-h-40 overflow-y-auto rounded-lg border border-stone-100 bg-stone-50 p-2'>
+        <Panel>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="primary" onClick={() => reset()}>
+              New campaign
+            </Button>
+            <details className="text-xs text-state-paper-dim">
+              <summary className="cursor-pointer font-display font-semibold uppercase tracking-label">
+                Detailed log
+              </summary>
+              <div className={cn('mt-2 max-h-40 overflow-y-auto p-2', panelInset)}>
                 {state.log.map((line, i) => (
                   <div key={i}>{line}</div>
                 ))}
               </div>
             </details>
           </div>
-        </section>
+        </Panel>
       </div>
     </div>
   );

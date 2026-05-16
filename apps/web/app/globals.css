@@ -9,13 +9,167 @@
     box-sizing: border-box;
   }
 
+  html {
+    @apply antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
   html,
   body {
-    @apply m-0 min-h-full;
+    @apply m-0 min-h-full bg-state-void text-board-ink;
   }
 
   button {
     @apply cursor-pointer;
     font: inherit;
+  }
+
+  ::selection {
+    @apply bg-state-amber/30 text-board-ink;
+  }
+}
+
+@layer components {
+  .game-shell {
+    @apply relative min-h-screen bg-state-void;
+  }
+
+  .game-card::before {
+    content: '';
+    @apply pointer-events-none absolute inset-x-0 top-0 h-px opacity-60;
+    background: linear-gradient(90deg, transparent, rgba(200, 194, 180, 0.12), transparent);
+  }
+
+  .game-card::after {
+    content: '';
+    @apply pointer-events-none absolute inset-0 rounded-lg opacity-0 transition-opacity duration-ui ease-ui;
+    background: linear-gradient(
+      135deg,
+      rgba(200, 194, 180, 0.03) 0%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.15) 100%
+    );
+  }
+
+  .game-card:not(.game-card-disabled):hover::after {
+    @apply opacity-100;
+  }
+
+  .game-card:not(.game-card-disabled):hover {
+    transform: translateY(-6px) scale(1.02) perspective(800px) rotateX(1deg);
+  }
+
+  .game-card:not(.game-card-disabled):active {
+    transform: translateY(-1px) scale(0.99);
+  }
+
+  .scroll-hand {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(122, 111, 82, 0.35) transparent;
+  }
+
+  .scroll-hand::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .scroll-hand::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-state-brass/40;
+  }
+
+  .timeline-node {
+    @apply relative flex h-9 min-w-[2.25rem] shrink-0 items-center justify-center rounded border font-display text-xs font-bold transition-all duration-ui ease-ui;
+  }
+
+  .timeline-node-active {
+    @apply border-state-amber/60 bg-[linear-gradient(180deg,#4a4438,#2e2c28)] text-board-ink shadow-btn;
+  }
+
+  .timeline-node-election {
+    @apply border-state-gold/40 bg-state-gold/10 text-state-gold;
+  }
+
+  .timeline-node-idle {
+    @apply border-state-steel/50 bg-state-graphite/60 text-state-paper-dim hover:border-state-concrete/60;
+  }
+
+  .modal-backdrop {
+    @apply absolute inset-0 bg-state-void/75 backdrop-blur-[3px];
+    animation: fadeIn 280ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  .modal-panel {
+    @apply relative max-h-[min(88vh,720px)] w-full max-w-lg overflow-y-auto rounded-lg border border-state-steel/70 bg-panel-metal p-6 shadow-panel-deep;
+    animation: slideUp 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .modal-panel-election {
+    @apply border-state-gold/35;
+    box-shadow:
+      0 1px 0 rgba(200, 194, 180, 0.08) inset,
+      0 12px 48px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(138, 125, 88, 0.12),
+      0 0 40px rgba(138, 125, 88, 0.06);
+  }
+
+  .choice-row {
+    @apply w-full rounded-md border border-state-steel/50 bg-state-graphite/50 px-3 py-3 text-left transition-all duration-ui ease-ui;
+    @apply hover:border-state-concrete/70 hover:bg-state-slate/60 hover:shadow-btn;
+    @apply active:translate-y-px active:shadow-card-pressed;
+  }
+
+  .choice-row-election {
+    @apply border-state-gold/30 hover:border-state-gold/50 hover:bg-state-gold/5;
+  }
+
+  .dice-cube {
+    @apply flex h-20 w-20 items-center justify-center rounded-md border-2 border-state-amber/50 bg-state-graphite font-display text-3xl font-black text-state-amber;
+    box-shadow:
+      0 0 24px rgba(154, 130, 88, 0.12),
+      inset 0 2px 12px rgba(0, 0, 0, 0.5);
+    animation: pulseSubtle 2s ease-in-out infinite;
+  }
+
+  .atmosphere-vignette {
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse 85% 75% at 50% 45%,
+      transparent 35%,
+      rgba(8, 9, 10, 0.55) 100%
+    );
+  }
+
+  .atmosphere-noise {
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .atmosphere-scanlines {
+    pointer-events: none;
+    opacity: 0.025;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(200, 194, 180, 0.03) 2px,
+      rgba(200, 194, 180, 0.03) 4px
+    );
+  }
+
+  .atmosphere-fog {
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      rgba(58, 66, 76, 0.08) 0%,
+      transparent 30%,
+      transparent 70%,
+      rgba(12, 13, 14, 0.25) 100%
+    );
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
 }

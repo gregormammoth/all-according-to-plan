@@ -2,60 +2,65 @@
 
 import { calculateStabilityIndex } from '@all-according-to-plan/shared';
 import { useGameStore } from '@/state/gameStore';
+import { Button } from '@/components/ui/Button';
+import { Panel } from '@/components/ui/Panel';
+import { cn } from '@/lib/ui/cn';
+import { labelMeta, labelSection, panelInset } from '@/lib/ui/variants';
 
 export function AdvisorPanel() {
   const state = useGameStore((s) => s.state);
   const reset = useGameStore((s) => s.reset);
   const stability = calculateStabilityIndex(state.stats);
   const phaseLabel =
-    state.phase === 'event_modal' ? 'event (modal)' : state.phase === 'game_over' ? 'game over' : state.phase;
+    state.phase === 'event_modal' ? 'event directive' : state.phase === 'game_over' ? 'terminated' : state.phase;
   const advice =
     stability >= 70
       ? 'The index looks survivable if we avoid spectacle mistakes. Keep ministries aligned and pay security on time.'
       : stability >= 45
-        ? 'Cracks are showing. Every card is leverage; do not spend actions on vanity when the deck is thin.'
-        : 'This is a crisis posture. Expect harder events — prioritize money and fear control before loyalty theater.';
+        ? 'Cracks are showing. Every directive is leverage; do not spend actions on vanity when reserves are thin.'
+        : 'Crisis posture. Expect harder events — prioritize treasury and fear control before loyalty theater.';
 
   return (
-    <div className="flex h-full flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+    <Panel className="flex h-full flex-col gap-4">
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-stone-900">Advisor</h3>
-        <button
-          type="button"
-          className="rounded-lg border border-stone-300 bg-stone-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-stone-800 hover:bg-stone-200"
-          onClick={() => reset()}
-        >
-          Reset run
-        </button>
+        <h3 className={labelSection}>State counselor</h3>
+        <Button variant="ghost" size="sm" onClick={() => reset()}>
+          Reset
+        </Button>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
         <div className="flex flex-col items-center gap-2">
-          <div className="flex h-24 w-24 items-center justify-center rounded-lg border-2 border-stone-300 bg-gradient-to-br from-stone-100 to-stone-200 text-4xl shadow-inner">
-            <span aria-hidden="true">
-              🎖️
-            </span>
+          <div
+            className={cn(
+              'flex h-24 w-24 items-center justify-center rounded-md border border-state-steel/50 text-4xl',
+              panelInset
+            )}
+          >
+            <span aria-hidden="true">◆</span>
           </div>
-          <div className="rounded-lg border border-stone-200 bg-amber-50/80 px-3 py-2 text-center text-xs font-medium leading-snug text-stone-800">
+          <div className="rounded-md border border-state-amber/25 bg-state-amber/5 px-3 py-2 text-center text-xs font-medium leading-snug text-state-paper">
             {advice}
           </div>
         </div>
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-amber-200 bg-gradient-to-b from-amber-50 to-white p-4 text-center shadow-sm">
-          <div className="text-4xl" aria-hidden="true">
-            💰
-          </div>
-          <div className="text-xs font-bold uppercase tracking-widest text-stone-600">State treasury</div>
-          <div className="text-3xl font-black tracking-tight text-board-ink">$ {state.resources.money}</div>
-          <div className="text-[11px] text-stone-500">
+        <div
+          className={cn(
+            'flex flex-col items-center justify-center gap-2 rounded-md border border-state-gold/30 p-4 text-center',
+            'bg-[linear-gradient(180deg,rgba(58,52,40,0.2)_0%,rgba(26,29,33,0.6)_100%)]'
+          )}
+        >
+          <p className={labelMeta}>State treasury</p>
+          <div className="font-display text-3xl font-bold tracking-tight text-state-amber">$ {state.resources.money}</div>
+          <p className="text-[11px] text-state-paper-dim">
             Inf {state.resources.influence} · Auth {state.resources.authority}
-          </div>
-          <div className="text-[10px] text-stone-400">
+          </p>
+          <p className="text-[10px] text-state-fog">
             Deck {state.deck.length} · Discard {state.deckDiscard.length}
-          </div>
+          </p>
         </div>
       </div>
-      <div className="border-t border-stone-100 pt-2 text-center text-[11px] text-stone-500">
-        Stability {stability} · Round {state.round} · {phaseLabel}
-      </div>
-    </div>
+      <p className={cn('border-t border-state-steel/40 pt-2 text-center', labelMeta)}>
+        Stability {stability} · Cycle {state.round} · {phaseLabel}
+      </p>
+    </Panel>
   );
 }

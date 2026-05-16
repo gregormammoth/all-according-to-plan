@@ -1,5 +1,9 @@
 'use client';
 
+import { Panel } from '@/components/ui/Panel';
+import { cn } from '@/lib/ui/cn';
+import { bodyMuted, labelMeta, pillVariant } from '@/lib/ui/variants';
+
 type TimelineProps = {
   round: number;
   maxRounds: number;
@@ -23,59 +27,55 @@ export function Timeline({
       ? 0
       : Math.max(0, maxPlayerActionsPerRound - playerActionsUsed);
   const phaseLabel =
-    phase === 'event_modal' ? 'EVENT' : phase === 'game_over' ? 'GAME OVER' : 'PLAYER';
-  const phasePillClass =
-    phase === 'player'
-      ? 'border-yellow-500 bg-yellow-400 text-black'
-      : phase === 'event_modal'
-        ? 'border-amber-400 bg-amber-100 text-amber-950'
-        : 'border-stone-300 bg-stone-200 text-stone-800';
+    phase === 'event_modal' ? 'Event' : phase === 'game_over' ? 'Terminated' : 'Operations';
+  const phaseTone =
+    phase === 'player' ? 'authority' : phase === 'event_modal' ? 'event' : 'neutral';
 
   return (
-    <header className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+    <Panel as="header">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-xl font-black uppercase tracking-tight text-board-ink md:text-2xl">
+          <p className={labelMeta}>Ministry central registry · Campaign cycle</p>
+          <h1 className="mt-1 font-display text-2xl font-bold uppercase tracking-tight text-board-ink md:text-3xl">
             All According to Plan
           </h1>
-          <p className="mt-1 text-sm text-stone-600">Round-based campaign pacing</p>
+          <p className={cn(bodyMuted, 'mt-1')}>State pacing and operational calendar</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${phasePillClass}`}
-          >
-            Phase: {phaseLabel}
+          <span className={pillVariant(phaseTone as 'authority' | 'event' | 'neutral')}>
+            Phase · {phaseLabel}
           </span>
-          <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-stone-800">
-            Round {activeRound} / {maxRounds}
+          <span className={pillVariant('neutral')}>
+            Cycle {activeRound} / {maxRounds}
           </span>
-          <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-stone-800">
+          <span className={pillVariant('neutral')}>
             Actions {actionsLeft} / {maxPlayerActionsPerRound}
           </span>
         </div>
       </div>
-      <div className="mt-4 flex gap-1 pb-1">
+      <div className="mt-4 flex gap-1 overflow-x-auto pb-1">
         {rounds.map((r) => (
           <div
             key={r}
-            className={`relative flex h-9 min-w-[2.25rem] shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+            className={cn(
+              'timeline-node',
               r === activeRound
-                ? 'bg-yellow-400 text-black shadow-sm ring-2 ring-yellow-500/40'
+                ? 'timeline-node-active'
                 : isElectionRound(r)
-                  ? 'border border-amber-300 bg-amber-50 text-amber-900'
-                  : 'border border-stone-200 bg-stone-50 text-stone-500'
-            }`}
-            title={isElectionRound(r) ? `Round ${r} election` : `Round ${r}`}
+                  ? 'timeline-node-election'
+                  : 'timeline-node-idle'
+            )}
+            title={isElectionRound(r) ? `Cycle ${r} · election` : `Cycle ${r}`}
           >
             {r}
             {isElectionRound(r) ? (
-              <span className='absolute -right-1 -top-1 rounded-full border border-amber-300 bg-amber-100 px-1 text-[8px] font-black leading-3 text-amber-900'>
+              <span className="absolute -right-1 -top-1 rounded border border-state-gold/50 bg-state-charcoal px-1 font-display text-[8px] font-bold leading-3 text-state-gold">
                 E
               </span>
             ) : null}
           </div>
         ))}
       </div>
-    </header>
+    </Panel>
   );
 }

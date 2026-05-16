@@ -8,6 +8,9 @@ import {
   type Outcome,
 } from '@all-according-to-plan/shared';
 import { useGameStore } from '@/state/gameStore';
+import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/ui/cn';
+import { labelMeta, panelInset } from '@/lib/ui/variants';
 
 function findChoice(state: GameState): EventChoice | null {
   if (!state.pendingEvent?.choices || !state.pendingChoiceId) return null;
@@ -71,44 +74,42 @@ export function EventModal() {
   const selectedChoice = findChoice(state);
   const selectedOutcome = outcomeFromState(state);
   const election = event.type === 'election';
-  const panelTone = election
-    ? 'border-amber-300 bg-gradient-to-b from-amber-50 to-white'
-    : 'border-stone-200 bg-white';
   const stepTitle =
     state.eventStep === 'choice'
-      ? 'Choose your response'
+      ? 'Choose response'
       : state.eventStep === 'rolling'
-        ? 'Rolling outcome'
+        ? 'Resolving'
         : state.eventStep === 'revealed'
           ? 'Outcome revealed'
           : state.eventStep === 'applied'
-            ? 'Effects applied'
+            ? 'Applied'
             : 'Event';
+
   return (
     <div
-      className="fixed inset-0 z-[4000] flex items-center justify-center p-6"
+      className="fixed inset-0 z-[4000] flex animate-fade-in items-center justify-center p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="event-modal-title"
     >
-      <div className="absolute inset-0 bg-stone-900/55 backdrop-blur-sm" aria-hidden="true" />
-      <div className={`relative z-[1] max-h-[min(88vh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border p-6 shadow-2xl ${panelTone}`}>
-        <div className="text-[11px] font-bold uppercase tracking-widest text-stone-500">
-          {election ? 'Special event · Election' : `Severity: ${event.severity}`} · Step: {stepTitle}
-        </div>
-        <h2 id="event-modal-title" className="mt-2 text-2xl font-black tracking-tight text-board-ink">
+      <div className="modal-backdrop" aria-hidden="true" />
+      <div className={cn('modal-panel', election && 'modal-panel-election')}>
+        <p className={labelMeta}>
+          {election ? 'Special directive · Election cycle' : `Severity ${event.severity}`} · {stepTitle}
+        </p>
+        <h2 id="event-modal-title" className="mt-2 font-display text-2xl font-bold tracking-tight text-board-ink">
           {election ? 'Election Year' : event.title}
         </h2>
-        <p className="mt-3 text-sm leading-relaxed text-stone-700">{event.description}</p>
+        <p className="mt-3 text-sm leading-relaxed text-state-paper-dim">{event.description}</p>
         {event.condition ? (
           <div className="mt-5">
-            <div className="text-[11px] font-bold uppercase tracking-widest text-stone-500">Condition</div>
-            <p className="mt-1 text-sm leading-relaxed text-stone-800">{event.condition}</p>
+            <p className={labelMeta}>Condition</p>
+            <p className="mt-1 text-sm leading-relaxed text-state-paper">{event.condition}</p>
           </div>
         ) : null}
         {state.eventStep === 'choice' ? (
           <div className="mt-5 space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-widest text-stone-500">Choices</div>
+            <p className={labelMeta}>Authorized responses</p>
             {(event.choices ?? []).map((choice) => {
               const p = choice.probability ?? { success: 33, partial: 34, failure: 33 };
               return (
@@ -116,10 +117,10 @@ export function EventModal() {
                   key={choice.id}
                   type="button"
                   onClick={() => selectEventChoice(choice.id)}
-                  className={`w-full rounded-lg border px-3 py-3 text-left ${election ? 'border-amber-200 bg-amber-50 hover:bg-amber-100' : 'border-stone-200 bg-stone-50 hover:bg-stone-100'}`}
+                  className={cn('choice-row', election && 'choice-row-election')}
                 >
-                  <div className="text-sm font-semibold text-stone-900">{choice.text}</div>
-                  <div className="mt-1 text-xs text-stone-500">
+                  <div className="text-sm font-semibold text-board-ink">{choice.text}</div>
+                  <div className="mt-1 text-xs text-state-paper-dim">
                     Success {p.success}% · Partial {p.partial}% · Failure {p.failure}%
                   </div>
                 </button>
@@ -129,31 +130,29 @@ export function EventModal() {
         ) : null}
         {state.eventStep === 'rolling' ? (
           <div className="mt-6 flex items-center justify-center">
-            <div className="h-20 w-20 animate-pulse rounded-xl border-2 border-amber-500 bg-amber-100 text-center text-3xl font-black leading-[4.5rem] text-amber-900">
-              d100
-            </div>
+            <div className="dice-cube">d100</div>
           </div>
         ) : null}
         {state.eventStep === 'revealed' && state.diceResult ? (
-          <div className="mt-5 space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-3">
-            <div className="text-xs font-bold uppercase tracking-widest text-stone-500">Dice result</div>
-            <div className="text-2xl font-black text-board-ink">Roll {state.diceResult.roll}</div>
-            <div className="text-sm font-semibold text-stone-800">{state.lastOutcomeSummary}</div>
-            <div className="text-xs text-stone-600">
+          <div className={cn('mt-5 space-y-2 p-3', panelInset)}>
+            <p className={labelMeta}>Dice result</p>
+            <div className="font-display text-2xl font-bold text-board-ink">Roll {state.diceResult.roll}</div>
+            <div className="text-sm font-semibold text-state-paper">{state.lastOutcomeSummary}</div>
+            <div className="text-xs text-state-paper-dim">
               Success ≤ {state.diceResult.threshold.success}, partial ≤{' '}
               {state.diceResult.threshold.success + state.diceResult.threshold.partial}
             </div>
             {selectedOutcome ? (
-              <div className="pt-1 text-xs text-stone-600">
+              <div className="pt-1 text-xs text-state-paper-dim">
                 {formatStatPreview(selectedOutcome.statDeltas).join(' · ')}
               </div>
             ) : null}
           </div>
         ) : null}
         {state.eventStep === 'applied' ? (
-          <div className="mt-5 space-y-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
-            <div className="text-xs font-bold uppercase tracking-widest text-stone-500">Applied changes</div>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-stone-800">
+          <div className={cn('mt-5 space-y-3 p-3', panelInset)}>
+            <p className={labelMeta}>Applied changes</p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-state-paper">
               {formatStatPreview(state.statChangesPreview ?? {}).map((line, i) => (
                 <li key={`s-${i}`}>{line}</li>
               ))}
@@ -165,47 +164,39 @@ export function EventModal() {
         ) : null}
         {event.outcomePreview && state.eventStep === 'choice' ? (
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-800">Success</div>
-              <p className="mt-1 text-xs leading-relaxed text-emerald-950">{event.outcomePreview.success}</p>
+            <div className="rounded-md border border-faction-people/30 bg-faction-people/5 p-3">
+              <p className={cn(labelMeta, 'text-faction-people')}>Success</p>
+              <p className="mt-1 text-xs leading-relaxed text-state-paper-dim">{event.outcomePreview.success}</p>
             </div>
-            <div className="rounded-lg border border-rose-200 bg-rose-50/80 p-3">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-rose-800">Failure</div>
-              <p className="mt-1 text-xs leading-relaxed text-rose-950">{event.outcomePreview.failure}</p>
+            <div className="rounded-md border border-faction-danger/30 bg-faction-danger/5 p-3">
+              <p className={cn(labelMeta, 'text-faction-danger')}>Failure</p>
+              <p className="mt-1 text-xs leading-relaxed text-state-paper-dim">{event.outcomePreview.failure}</p>
             </div>
           </div>
         ) : null}
         {state.eventStep === 'choice' ? (
           <div className="mt-5">
-            <div className="text-[11px] font-bold uppercase tracking-widest text-stone-500">Baseline effects</div>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm font-medium text-stone-800">
+            <p className={labelMeta}>Baseline effects</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-state-paper">
               {effectLines.map((line, i) => (
                 <li key={i}>{line}</li>
               ))}
             </ul>
           </div>
         ) : null}
-        {error ? <div className="mt-3 text-xs text-rose-700">{error}</div> : null}
+        {error ? <div className="mt-3 text-xs text-faction-danger">{error}</div> : null}
         {state.eventStep === 'revealed' ? (
-          <button
-            type="button"
-            className="mt-6 w-full rounded-xl border-2 border-yellow-500 bg-yellow-400 py-3 text-sm font-black uppercase tracking-wide text-black shadow-sm hover:bg-yellow-300"
-            onClick={() => applyEventOutcome()}
-          >
+          <Button variant="primary" size="lg" className="mt-6 w-full" onClick={() => applyEventOutcome()}>
             Apply outcome
-          </button>
+          </Button>
         ) : null}
         {state.eventStep === 'applied' ? (
-          <button
-            type="button"
-            className="mt-6 w-full rounded-xl border-2 border-yellow-500 bg-yellow-400 py-3 text-sm font-black uppercase tracking-wide text-black shadow-sm hover:bg-yellow-300"
-            onClick={() => continueEvent()}
-          >
-            Continue
-          </button>
+          <Button variant="primary" size="lg" className="mt-6 w-full" onClick={() => continueEvent()}>
+            Continue cycle
+          </Button>
         ) : null}
         {selectedChoice && state.eventStep === 'rolling' ? (
-          <div className="mt-4 text-center text-xs text-stone-600">Resolving: {selectedChoice.text}</div>
+          <p className="mt-4 text-center text-xs text-state-paper-dim">Resolving: {selectedChoice.text}</p>
         ) : null}
       </div>
     </div>

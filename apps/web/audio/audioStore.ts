@@ -74,6 +74,8 @@ export const useAudioStore = create<AudioStoreState>((set, get) => ({
     if (!ok) return;
     set({ unlocked: true, showUnlockHint: false });
     await getAudioManager().preloadCategories(['ui', 'event']);
+    await getAudioManager().ensureBaseAmbient();
+    void getAudioManager().startGameplayBed();
     window.setTimeout(() => {
       void getAudioManager().preloadLoops();
     }, 2000);
@@ -89,6 +91,9 @@ export const useAudioStore = create<AudioStoreState>((set, get) => ({
     persistSettings(settings);
     applyToManager(settings);
     set({ settings });
+    if (get().unlocked && !settings.muted) {
+      void getAudioManager().ensureBaseAmbient();
+    }
   },
   setSfxVolume: (v) => {
     const settings = { ...get().settings, sfxVolume: clamp(v) };
@@ -101,6 +106,10 @@ export const useAudioStore = create<AudioStoreState>((set, get) => ({
     persistSettings(settings);
     applyToManager(settings);
     set({ settings });
+    if (!muted && get().unlocked) {
+      void getAudioManager().ensureBaseAmbient();
+      void getAudioManager().startGameplayBed();
+    }
   },
   toggleMute: () => {
     get().setMuted(!get().settings.muted);

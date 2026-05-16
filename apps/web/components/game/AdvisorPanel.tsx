@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { calculateStabilityIndex } from '@all-according-to-plan/shared';
+import { DirectiveArchive } from '@/components/cards/DirectiveArchive';
 import { useGameStore, selectCanResetRound } from '@/state/gameStore';
 import { Button } from '@/components/ui/Button';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
@@ -11,6 +12,7 @@ import { labelMeta, labelSection, panelInset } from '@/lib/ui/variants';
 
 export function AdvisorPanel() {
   const state = useGameStore((s) => s.state);
+  const library = useGameStore((s) => s.library);
   const reset = useGameStore((s) => s.reset);
   const resetRound = useGameStore((s) => s.resetRound);
   const [showResetCampaign, setShowResetCampaign] = useState(false);
@@ -25,6 +27,15 @@ export function AdvisorPanel() {
       : stability >= 45
         ? 'Cracks are showing. Every directive is leverage; do not spend actions on vanity when reserves are thin.'
         : 'Crisis posture. Expect harder events — prioritize treasury and fear control before loyalty theater.';
+
+  const archivedEvents = useMemo(
+    () =>
+      [...state.playedCardIds]
+        .reverse()
+        .map((id) => library.get(id))
+        .filter((c): c is Exclude<typeof c, undefined> => c !== undefined && c.type === 'event'),
+    [state.playedCardIds, library]
+  );
 
   return (
     <>
@@ -105,6 +116,9 @@ export function AdvisorPanel() {
         <p className={cn('border-t border-state-steel/40 pt-2 text-center', labelMeta)}>
           Stability {stability} · Cycle {state.round} · {phaseLabel}
         </p>
+        <div className="min-h-0 flex-1 border-t border-state-steel/40 pt-3">
+          <DirectiveArchive events={archivedEvents} />
+        </div>
       </Panel>
     </>
   );

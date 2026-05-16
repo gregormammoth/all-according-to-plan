@@ -11,7 +11,9 @@ import { PlayedCards } from '@/components/game/PlayedCards';
 import { Timeline } from '@/components/game/Timeline';
 import { AdvisorPanel } from '@/components/game/AdvisorPanel';
 import { CastleScene } from '@/components/three/CastleScene';
+import { ShakeLayer } from '@/components/motion/ShakeLayer';
 import { Atmosphere } from '@/components/ui/Atmosphere';
+import { AnimatedNumber } from '@/lib/motion/AnimatedNumber';
 import { useGameAudio } from '@/audio/useGameAudio';
 import { useGameOverAudio } from '@/audio/useGameOverAudio';
 import { useGameStore } from '@/state/gameStore';
@@ -65,6 +67,7 @@ export function GameShell() {
             <PlayedCards />
           </aside>
           <main className="col-span-4 min-h-[280px] lg:min-h-[420px]">
+            <ShakeLayer>
             <div className="relative h-[300px] w-full overflow-hidden rounded-lg border border-state-steel/60 bg-scene-frame shadow-panel-deep sm:h-[360px] lg:h-[440px]">
               <CastleScene />
               <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_60%,rgba(12,13,14,0.5)_100%)]" />
@@ -73,14 +76,18 @@ export function GameShell() {
                   <div className="text-[9px] font-display font-bold uppercase tracking-label text-faction-people">
                     Stability
                   </div>
-                  <div className="font-display text-sm font-bold text-board-ink">{stability}</div>
+                  <div className="font-display text-sm font-bold text-board-ink">
+                    <AnimatedNumber value={stability} />
+                  </div>
                 </div>
                 <div className={cn(statHud, 'border-state-gold/30')}>
                   <div className="text-[9px] font-display font-bold uppercase tracking-label text-state-gold">
                     Unity
                   </div>
                   <div className="font-display text-sm font-bold text-board-ink">
-                    {Math.round((stats.people.loyalty + stats.elites.loyalty) / 2)}
+                    <AnimatedNumber
+                      value={Math.round((stats.people.loyalty + stats.elites.loyalty) / 2)}
+                    />
                   </div>
                 </div>
                 <div className={cn(statHud, 'border-faction-security/30')}>
@@ -88,11 +95,14 @@ export function GameShell() {
                     Security
                   </div>
                   <div className="font-display text-sm font-bold text-board-ink">
-                    {Math.round((stats.security.loyalty + stats.security.fear) / 2)}
+                    <AnimatedNumber
+                      value={Math.round((stats.security.loyalty + stats.security.fear) / 2)}
+                    />
                   </div>
                 </div>
               </div>
             </div>
+            </ShakeLayer>
           </main>
           <aside className="col-span-4 flex min-h-[220px] flex-col lg:min-h-[360px]">
             <CrisisPanel />

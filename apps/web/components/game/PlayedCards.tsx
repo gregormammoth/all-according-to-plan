@@ -1,70 +1,76 @@
 'use client';
 
+import { AnimatePresence, motion } from 'framer-motion';
 import { useGameStore } from '@/state/gameStore';
+import { useMotionStore } from '@/state/motionStore';
+import { DirectiveCard } from '@/components/cards/DirectiveCard';
+import { useMotionPrefs } from '@/lib/motion/MotionProvider';
+import { activeDirectiveEnter } from '@/lib/motion/variants';
 import { Panel } from '@/components/ui/Panel';
 import { cn } from '@/lib/ui/cn';
 import { labelMeta, labelSection } from '@/lib/ui/variants';
 
 export function PlayedCards() {
+  const { reduced } = useMotionPrefs();
   const state = useGameStore((s) => s.state);
   const library = useGameStore((s) => s.library);
+  const playCue = useMotionStore((s) =>
+    s.cue?.type === 'play' && s.cue.cardKind === 'asset' ? s.cue.cardId : null
+  );
   const activeAssets = state.activeAssets
     .map((id) => library.get(id))
     .filter((c): c is Exclude<typeof c, undefined> => c !== undefined);
-  const playedEvents = [...state.playedCardIds]
-    .reverse()
-    .map((id) => library.get(id))
-    .filter((c): c is Exclude<typeof c, undefined> => c !== undefined && c.type === 'event');
 
   return (
-    <Panel className="flex h-full min-h-0 flex-col !p-3">
+    <Panel className="directive-panel-active flex h-full min-h-0 flex-col !p-3">
       <h3 className={cn(labelSection, 'flex items-center gap-2 border-b border-state-steel/40 pb-2')}>
-        <span aria-hidden="true" className="text-state-paper-dim">
-          ◷
+        <span aria-hidden className="text-state-gold/80">
+          ◆
         </span>
-        Issued directives
+        Active programs
       </h3>
-      <div className="mt-2 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-        <div>
-          <p className={cn(labelMeta, 'mb-1 text-state-gold')}>Active assets</p>
+      <p className={cn(labelMeta, 'mt-1 text-state-paper-dim')}>
+        Ongoing regime apparatus · persistent state policies
+      </p>
+      <div className="relative mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+        {activeAssets.length === 0 ? (
+          <div className="flex h-full min-h-[8rem] flex-col items-center justify-center rounded-md border border-dashed border-state-brass/25 bg-state-gold/[0.03] px-4 text-center">
+            <p className="font-display text-xs font-semibold uppercase tracking-label text-state-gold/80">
+              No programs enacted
+            </p>
+            <p className="mt-1 max-w-[12rem] text-[10px] leading-snug text-state-fog">
+              Persistent directives from your operational hand will appear here.
+            </p>
+          </div>
+        ) : (
           <div className="space-y-2">
-            {activeAssets.length === 0 ? (
-              <p className="text-xs text-state-paper-dim">None deployed.</p>
-            ) : (
-              activeAssets.map((card) => (
-                <div
+            <AnimatePresence initial={false} mode="sync">
+              {activeAssets.map((card, index) => (
+                <motion.div
                   key={card.id}
-                  className="rounded-md border border-state-gold/25 bg-state-gold/5 px-3 py-2 text-sm"
+                  variants={activeDirectiveEnter}
+                  initial={playCue === card.id && !reduced ? 'hidden' : false}
+                  animate="visible"
+                  className={cn(
+                    'directive-stack-item relative',
+                    index > 0 && '-mt-1'
+                  )}
+                  style={{ zIndex: activeAssets.length - index }}
                 >
-                  <div className="font-display font-bold text-board-ink">{card.name}</div>
-                  <p className={cn(labelMeta, 'text-state-gold')}>
-                    active {card.archetype ? `· ${card.archetype}` : ''}
-                  </p>
-                </div>
-              ))
-            )}
+                  <DirectiveCard
+                    card={card}
+                    variant="active"
+                    footer={
+                      <span className="shrink-0 font-display text-[9px] font-bold uppercase tracking-label text-state-gold">
+                        Active
+                      </span>
+                    }
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
-        </div>
-        <div>
-          <p className={cn(labelMeta, 'mb-1 text-faction-danger')}>Processed events</p>
-          <div className="space-y-2">
-            {playedEvents.length === 0 ? (
-              <p className="text-xs text-state-paper-dim">None on record.</p>
-            ) : (
-              playedEvents.map((card, idx) => (
-                <div
-                  key={`${card.id}-${idx}`}
-                  className="rounded-md border border-faction-danger/20 bg-faction-danger/5 px-3 py-2 text-sm"
-                >
-                  <div className="font-display font-bold text-board-ink">{card.name}</div>
-                  <p className={cn(labelMeta, 'text-faction-danger')}>
-                    event {card.archetype ? `· ${card.archetype}` : ''}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        )}
       </div>
     </Panel>
   );

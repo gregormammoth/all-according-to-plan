@@ -29,12 +29,8 @@ export function useGameAudio(): void {
   const prevStep = useRef(state.eventStep);
   const prevModalOpen = useRef(eventModalOpen);
   const prevActions = useRef(state.playerActionsUsed);
-  const bedStarted = useRef(false);
-
   useEffect(() => {
     if (!unlocked || state.phase === 'game_over') return;
-    if (bedStarted.current) return;
-    bedStarted.current = true;
     void getAudioManager().startGameplayBed();
   }, [unlocked, state.phase]);
 

@@ -43,10 +43,8 @@ type GameStore = {
   state: GameState;
   library: CardLibrary;
   error: string | null;
-  playSelectMode: boolean;
   eventModal: EventModalState;
   roundSnapshot: RoundSnapshot | null;
-  togglePlaySelectMode: () => void;
   play: (cardId: string) => void;
   draw: () => void;
   gain: (resource: ResourceType) => void;
@@ -66,17 +64,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   state: initialState,
   library: getDefaultLibrary(),
   error: null,
-  playSelectMode: false,
   eventModal: initialModal,
   roundSnapshot: initialSnapshot,
-  togglePlaySelectMode: () => {
-    set({ playSelectMode: !get().playSelectMode, error: null });
-  },
   play: (cardId) => {
-    if (!get().playSelectMode) {
-      set({ error: 'Arm Play card before choosing a card.' });
-      return;
-    }
     const res = playCard(get().library, get().state, cardId);
     if (!res.ok) {
       set({ error: res.error });
@@ -85,7 +75,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       ...afterPlayerPhaseTransition(res.state),
       error: null,
-      playSelectMode: false,
     });
   },
   draw: () => {
@@ -97,7 +86,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       ...afterPlayerPhaseTransition(res.state),
       error: null,
-      playSelectMode: false,
     });
   },
   gain: (resource) => {
@@ -109,7 +97,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       ...afterPlayerPhaseTransition(res.state),
       error: null,
-      playSelectMode: false,
     });
   },
   selectEventChoice: (choiceId) => {
@@ -122,7 +109,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state: res.state,
       error: null,
       eventModal: eventModalFromGameState(res.state),
-      playSelectMode: false,
     });
   },
   rollEvent: () => {
@@ -135,7 +121,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state: res.state,
       error: null,
       eventModal: eventModalFromGameState(res.state),
-      playSelectMode: false,
     });
   },
   applyEventOutcome: () => {
@@ -148,7 +133,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state: res.state,
       error: null,
       eventModal: eventModalFromGameState(res.state),
-      playSelectMode: false,
     });
   },
   continueEvent: () => {
@@ -163,7 +147,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state: res.state,
       error: null,
       eventModal: eventModalFromGameState(res.state),
-      playSelectMode: false,
       roundSnapshot: nextSnapshot,
     });
   },
@@ -180,7 +163,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       state: applyRoundSnapshot(state, roundSnapshot),
       error: null,
-      playSelectMode: false,
       eventModal: initialModal,
     });
   },
@@ -189,7 +171,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       state,
       error: null,
-      playSelectMode: false,
       eventModal: initialModal,
       roundSnapshot: captureRoundSnapshot(state),
     });

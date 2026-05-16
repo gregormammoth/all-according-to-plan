@@ -1,49 +1,88 @@
 'use client';
 
 import { useRef } from 'react';
-import {
-  MAX_HAND_CARDS,
-  canPay,
-  describeCardEffectBullets,
-  type CardCost,
-} from '@all-according-to-plan/shared';
+import { AnimatePresence } from 'framer-motion';
+import { MAX_HAND_CARDS, canPay } from '@all-according-to-plan/shared';
 import { useAudio } from '@/audio/useAudio';
-import { cardFrameClass, cardTypeBadgeClass } from '@/lib/cardFrame';
+import { HandDirectiveCard } from '@/components/cards/HandDirectiveCard';
 import { useGameStore } from '@/state/gameStore';
+import { useMotionStore } from '@/state/motionStore';
 import { Button } from '@/components/ui/Button';
 import { Panel } from '@/components/ui/Panel';
 import { cn } from '@/lib/ui/cn';
-import { bodyMuted, labelMeta, labelSection, panelInset } from '@/lib/ui/variants';
-
-function formatCostBold(cost: CardCost) {
-  const bits: string[] = [];
-  if (cost.money) bits.push(`$ ${cost.money}`);
-  if (cost.influence) bits.push(`Inf ${cost.influence}`);
-  if (cost.authority) bits.push(`Auth ${cost.authority}`);
-  return bits.length ? bits.join(' · ') : '—';
-}
+import { bodyMuted, labelMeta, labelSection } from '@/lib/ui/variants';
 
 export function CardBar() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastHoverId = useRef<string | null>(null);
+  const playingRef = useRef<string | null>(null);
   const { play: playSfx } = useAudio();
   const state = useGameStore((s) => s.state);
   const library = useGameStore((s) => s.library);
   const error = useGameStore((s) => s.error);
-  const playSelectMode = useGameStore((s) => s.playSelectMode);
-  const togglePlaySelectMode = useGameStore((s) => s.togglePlaySelectMode);
   const playCard = useGameStore((s) => s.play);
   const draw = useGameStore((s) => s.draw);
   const gain = useGameStore((s) => s.gain);
+  const setCue = useMotionStore((s) => s.setCue);
+  const clearCue = useMotionStore((s) => s.clearCue);
+  const setPendingPlayExit = useMotionStore((s) => s.setPendingPlayExit);
+  const pendingPlayExit = useMotionStore((s) => s.pendingPlayExit);
+  const flashArchive = useMotionStore((s) => s.flashArchive);
+  const clearArchiveFlash = useMotionStore((s) => s.clearArchiveFlash);
+  const cue = useMotionStore((s) => s.cue);
   const actionsRemaining =
     state.phase === 'game_over' || state.phase === 'event_modal'
       ? 0
       : Math.max(0, state.maxPlayerActionsPerRound - state.playerActionsUsed);
   const eventModalOpen = state.phase === 'event_modal';
   const dead = state.phase === 'game_over' || state.phase === 'event_modal' || actionsRemaining <= 0;
+  const drawCueId = useMotionStore((s) => (s.cue?.type === 'draw' ? s.cue.cardId : null));
 
   const scrollBy = (dx: number) => {
     scrollRef.current?.scrollBy({ left: dx, behavior: 'smooth' });
+  };
+
+  const handlePlay = (id: string) => {
+    if (playingRef.current === id) return;
+    const card = library.get(id);
+    if (!card || dead || !canPay(state.resources, card.cost)) return;
+
+    playingRef.current = id;
+    setCue({ type: 'play', cardId: id, cardKind: card.type });
+    setPendingPlayExit({ cardId: id, cardKind: card.type });
+    playSfx('card_play');
+    playCard(id);
+
+    if (card.type === 'event') {
+      flashArchive(id);
+      window.setTimeout(() => clearArchiveFlash(), 700);
+    }
+
+    window.setTimeout(() => {
+      clearCue();
+      setPendingPlayExit(null);
+      playingRef.current = null;
+    }, 320);
+  };
+
+  const handIds = [...state.hand];
+  if (
+    pendingPlayExit &&
+    !handIds.includes(pendingPlayExit.cardId) &&
+    library.has(pendingPlayExit.cardId)
+  ) {
+    handIds.unshift(pendingPlayExit.cardId);
+  }
+
+  const handleDraw = () => {
+    const before = new Set(state.hand);
+    playSfx('draw_card');
+    draw();
+    const added = useGameStore.getState().state.hand.find((cid) => !before.has(cid));
+    if (added) {
+      setCue({ type: 'draw', cardId: added });
+      window.setTimeout(() => clearCue(), 280);
+    }
   };
 
   return (
@@ -59,29 +98,14 @@ export function CardBar() {
           <p className={cn(bodyMuted, 'mt-2 max-w-xl')}>
             {eventModalOpen
               ? 'Resolve the crisis directive in the modal. Continuation triggers upkeep: bonus draw and treasury credit.'
-              : `Expend ${state.maxPlayerActionsPerRound} actions per cycle, then process the mandatory state event before advance.`}
+              : `Select a directive to enact. ${state.maxPlayerActionsPerRound} actions per cycle — then mandatory state event.`}
           </p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
           {error ? <p className="max-w-xs text-right text-sm text-faction-danger">{error}</p> : null}
           <div className="flex flex-nowrap justify-end gap-2">
-            <Button
-              variant="primary"
-              size="md"
-              active={playSelectMode}
-              disabled={dead}
-              onClick={() => togglePlaySelectMode()}
-            >
-              Play card
-            </Button>
-            <Button
-              disabled={dead || state.deck.length === 0}
-              onClick={() => {
-                playSfx('draw_card');
-                draw();
-              }}
-            >
-              Draw
+            <Button disabled={dead || state.deck.length === 0} onClick={handleDraw}>
+              Draw directive
             </Button>
             <Button
               disabled={dead}
@@ -95,7 +119,7 @@ export function CardBar() {
           </div>
         </div>
       </div>
-      <div className="relative mt-4">
+      <div className="relative mt-4 min-h-[19rem]">
         <button
           type="button"
           aria-label="Scroll hand left"
@@ -112,64 +136,39 @@ export function CardBar() {
         >
           ›
         </button>
-        <div ref={scrollRef} className="hand-strip scroll-hand flex gap-3 scroll-smooth px-0 sm:px-10">
-          {state.hand.map((id) => {
-            const card = library.get(id);
-            if (!card) return null;
-            const affordable = canPay(state.resources, card.cost);
-            const highlighted = playSelectMode && !dead && affordable;
-            const disabled = !playSelectMode || dead || !affordable;
-            const typeInitial = (card.type?.[0] ?? '?').toUpperCase();
-            const bullets = describeCardEffectBullets(card);
-            return (
-              <button
-                key={id}
-                type="button"
-                disabled={disabled}
-                onMouseEnter={() => {
-                  if (disabled || lastHoverId.current === id) return;
-                  lastHoverId.current = id;
-                  playSfx('card_hover');
-                }}
-                onMouseLeave={() => {
-                  if (lastHoverId.current === id) lastHoverId.current = null;
-                }}
-                onClick={() => {
-                  playSfx('card_play');
-                  playCard(id);
-                }}
-                className={cardFrameClass(card.type, { highlighted, disabled })}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-display text-sm font-bold uppercase tracking-tight text-board-ink">
-                      {card.name}
-                    </div>
-                    <div className={cn(labelMeta, 'mt-0.5')}>
-                      {card.type} {card.archetype ? `· ${card.archetype}` : ''}
-                    </div>
-                  </div>
-                  <div
-                    className={cn(
-                      'flex h-8 w-8 shrink-0 items-center justify-center rounded',
-                      cardTypeBadgeClass(card.type)
-                    )}
-                  >
-                    {typeInitial}
-                  </div>
-                </div>
-                <p className="mt-2 line-clamp-3 text-[11px] leading-snug text-state-paper-dim">{card.description}</p>
-                <div className="mt-3 font-display text-lg font-bold tracking-tight text-state-amber">
-                  COST {formatCostBold(card.cost)}
-                </div>
-                <ul className={cn('mt-2 space-y-1 border-t border-state-steel/40 pt-2 text-[11px] text-state-paper-dim', panelInset, '!border-0 !bg-transparent !shadow-none')}>
-                  {bullets.map((b, i) => (
-                    <li key={i}>{b}</li>
-                  ))}
-                </ul>
-              </button>
-            );
-          })}
+        <div
+          ref={scrollRef}
+          className="hand-strip scroll-hand flex gap-3 scroll-smooth px-0 sm:px-10"
+        >
+          <AnimatePresence mode="sync">
+            {handIds.map((id) => {
+              const card = library.get(id);
+              if (!card) return null;
+              const affordable = canPay(state.resources, card.cost);
+              const isExiting = pendingPlayExit?.cardId === id && !state.hand.includes(id);
+              const disabled = dead || !affordable || isExiting;
+              const playExit =
+                isExiting || (cue?.type === 'play' && cue.cardId === id);
+              return (
+                <HandDirectiveCard
+                  key={id}
+                  card={card}
+                  disabled={disabled}
+                  drawEntry={drawCueId === id}
+                  playExit={playExit}
+                  onHover={() => {
+                    if (disabled || lastHoverId.current === id) return;
+                    lastHoverId.current = id;
+                    playSfx('card_hover');
+                  }}
+                  onLeave={() => {
+                    if (lastHoverId.current === id) lastHoverId.current = null;
+                  }}
+                  onPlay={() => handlePlay(id)}
+                />
+              );
+            })}
+          </AnimatePresence>
         </div>
       </div>
     </Panel>

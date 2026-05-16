@@ -54,7 +54,7 @@ export const AMBIENCE_LOOPS: SoundDefinition[] = [
 ];
 
 export const MUSIC_LAYERS: SoundDefinition[] = [
-  { id: 'base_ambient', category: 'music', src: src(`${base}/music/base-ambient.ogg`), loop: true, volume: 0.35, preload: false, procedural: true },
+  { id: 'base_ambient', category: 'music', src: src(`${base}/music/base-ambient.ogg`), loop: true, volume: 0.35, preload: true, procedural: true },
   { id: 'election_tension', category: 'music', src: src(`${base}/music/election-tension.ogg`), loop: true, volume: 0.4, preload: false, procedural: true },
   { id: 'danger_escalation', category: 'music', src: src(`${base}/music/danger-escalation.ogg`), loop: true, volume: 0.45, preload: false, procedural: true },
   { id: 'collapse_alarm', category: 'music', src: src(`${base}/music/collapse-alarm.ogg`), loop: true, volume: 0.5, preload: false, procedural: true },

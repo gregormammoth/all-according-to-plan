@@ -1,14 +1,25 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   describeGameEventEffectLines,
   type EventChoice,
   type GameState,
   type Outcome,
 } from '@all-according-to-plan/shared';
+import { DiceRevealPanel, DiceRollDisplay } from '@/components/motion/DiceRollDisplay';
 import { useGameStore } from '@/state/gameStore';
 import { Button } from '@/components/ui/Button';
+import { useMotionPrefs } from '@/lib/motion/MotionProvider';
+import {
+  choiceRow,
+  modalBackdrop,
+  modalPanel,
+  staggerContainer,
+  staggerItem,
+  transitions,
+} from '@/lib/motion/variants';
 import { cn } from '@/lib/ui/cn';
 import { labelMeta, panelInset } from '@/lib/ui/variants';
 
@@ -49,6 +60,7 @@ function formatStatPreview(delta: GameState['statChangesPreview']): string[] {
 }
 
 export function EventModal() {
+  const { reduced } = useMotionPrefs();
   const state = useGameStore((s) => s.state);
   const isOpen = useGameStore((s) => s.eventModal.isOpen);
   const event = useGameStore((s) => s.eventModal.event);
@@ -58,22 +70,14 @@ export function EventModal() {
   const continueEvent = useGameStore((s) => s.continueEvent);
   const error = useGameStore((s) => s.error);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    if (state.eventStep !== 'rolling') return;
-    const timer = window.setTimeout(() => {
-      rollEvent();
-    }, 900);
-    return () => window.clearTimeout(timer);
-  }, [isOpen, state.eventStep, rollEvent]);
+  const handleRollComplete = useCallback(() => {
+    rollEvent();
+  }, [rollEvent]);
 
-  if (!isOpen || !event) {
-    return null;
-  }
-  const effectLines = describeGameEventEffectLines(event);
+  const effectLines = event ? describeGameEventEffectLines(event) : [];
   const selectedChoice = findChoice(state);
   const selectedOutcome = outcomeFromState(state);
-  const election = event.type === 'election';
+  const election = event?.type === 'election';
   const stepTitle =
     state.eventStep === 'choice'
       ? 'Choose response'
@@ -86,119 +90,223 @@ export function EventModal() {
             : 'Event';
 
   return (
-    <div
-      className="fixed inset-0 z-[4000] flex animate-fade-in items-center justify-center p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="event-modal-title"
-    >
-      <div className="modal-backdrop" aria-hidden="true" />
-      <div className={cn('modal-panel', election && 'modal-panel-election')}>
-        <p className={labelMeta}>
-          {election ? 'Special directive · Election cycle' : `Severity ${event.severity}`} · {stepTitle}
-        </p>
-        <h2 id="event-modal-title" className="mt-2 font-display text-2xl font-bold tracking-tight text-board-ink">
-          {election ? 'Election Year' : event.title}
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed text-state-paper-dim">{event.description}</p>
-        {event.condition ? (
-          <div className="mt-5">
-            <p className={labelMeta}>Condition</p>
-            <p className="mt-1 text-sm leading-relaxed text-state-paper">{event.condition}</p>
-          </div>
-        ) : null}
-        {state.eventStep === 'choice' ? (
-          <div className="mt-5 space-y-3">
-            <p className={labelMeta}>Authorized responses</p>
-            {(event.choices ?? []).map((choice) => {
-              const p = choice.probability ?? { success: 33, partial: 34, failure: 33 };
-              return (
-                <button
-                  key={choice.id}
-                  type="button"
-                  onClick={() => selectEventChoice(choice.id)}
-                  className={cn('choice-row', election && 'choice-row-election')}
+    <AnimatePresence>
+      {isOpen && event ? (
+        <motion.div
+          className="fixed inset-0 z-[4000] flex items-center justify-center p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="event-modal-title"
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
+          <motion.div
+            className="modal-backdrop !animate-none"
+            aria-hidden="true"
+            variants={modalBackdrop}
+            transition={reduced ? { duration: 0.01 } : transitions.modal}
+          />
+          <motion.div
+            className={cn('modal-panel !animate-none', election && 'modal-panel-election')}
+            variants={modalPanel}
+            transition={reduced ? { duration: 0.01 } : transitions.modal}
+          >
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+            >
+              <motion.p className={labelMeta} variants={staggerItem}>
+                {election ? 'Special directive · Election cycle' : `Severity ${event.severity}`} · {stepTitle}
+              </motion.p>
+              <motion.h2
+                id="event-modal-title"
+                className="mt-2 font-display text-2xl font-bold tracking-tight text-board-ink"
+                variants={staggerItem}
+              >
+                {election ? 'Election Year' : event.title}
+              </motion.h2>
+              <motion.p
+                className="mt-3 text-sm leading-relaxed text-state-paper-dim"
+                variants={staggerItem}
+              >
+                {event.description}
+              </motion.p>
+
+              {event.condition ? (
+                <motion.div className="mt-5" variants={staggerItem}>
+                  <p className={labelMeta}>Condition</p>
+                  <p className="mt-1 text-sm leading-relaxed text-state-paper">{event.condition}</p>
+                </motion.div>
+              ) : null}
+
+              <AnimatePresence mode="wait">
+                {state.eventStep === 'choice' ? (
+                  <motion.div
+                    key="choice"
+                    className="mt-5 space-y-3"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={transitions.ui}
+                  >
+                    <p className={labelMeta}>Authorized responses</p>
+                    {(event.choices ?? []).map((choice) => {
+                      const p = choice.probability ?? { success: 33, partial: 34, failure: 33 };
+                      return (
+                        <motion.button
+                          key={choice.id}
+                          type="button"
+                          onClick={() => selectEventChoice(choice.id)}
+                          className={cn('choice-row', election && 'choice-row-election')}
+                          variants={choiceRow}
+                          initial="rest"
+                          whileHover={reduced ? undefined : 'hover'}
+                          whileTap={reduced ? undefined : 'tap'}
+                        >
+                          <motion.div className="text-sm font-semibold text-board-ink">
+                            {choice.text}
+                          </motion.div>
+                          <div className="mt-1 text-xs text-state-paper-dim">
+                            Success {p.success}% · Partial {p.partial}% · Failure {p.failure}%
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </motion.div>
+                ) : null}
+
+                {state.eventStep === 'rolling' ? (
+                  <motion.div
+                    key="rolling"
+                    className="mt-6 flex flex-col items-center justify-center"
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={transitions.ui}
+                  >
+                    <DiceRollDisplay onComplete={handleRollComplete} />
+                    {selectedChoice ? (
+                      <p className="mt-4 text-center text-xs text-state-paper-dim">
+                        Resolving: {selectedChoice.text}
+                      </p>
+                    ) : null}
+                  </motion.div>
+                ) : null}
+
+                {state.eventStep === 'revealed' && state.diceResult ? (
+                  <motion.div
+                    key="revealed"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <DiceRevealPanel
+                      roll={state.diceResult.roll}
+                      outcomeType={state.diceResult.outcomeType}
+                      summary={state.lastOutcomeSummary ?? ''}
+                    />
+                    <div className="mt-2 text-xs text-state-paper-dim">
+                      Success ≤ {state.diceResult.threshold.success}, partial ≤{' '}
+                      {state.diceResult.threshold.success + state.diceResult.threshold.partial}
+                    </div>
+                    {selectedOutcome ? (
+                      <div className="pt-1 text-xs text-state-paper-dim">
+                        {formatStatPreview(selectedOutcome.statDeltas).join(' · ')}
+                      </div>
+                    ) : null}
+                  </motion.div>
+                ) : null}
+
+                {state.eventStep === 'applied' ? (
+                  <motion.div
+                    key="applied"
+                    className={cn('mt-5 space-y-3 p-3', panelInset)}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={transitions.ui}
+                  >
+                    <p className={labelMeta}>Applied changes</p>
+                    <ul className="list-disc space-y-1 pl-5 text-sm text-state-paper">
+                      {formatStatPreview(state.statChangesPreview ?? {}).map((line, i) => (
+                        <li key={`s-${i}`}>{line}</li>
+                      ))}
+                      {formatResourcePreview(state.resourceChangesPreview ?? {}).map((line, i) => (
+                        <li key={`r-${i}`}>{line}</li>
+                      ))}
+                    </ul>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+
+              {event.outcomePreview && state.eventStep === 'choice' ? (
+                <motion.div
+                  className="mt-5 grid gap-4 sm:grid-cols-2"
+                  variants={staggerItem}
                 >
-                  <div className="text-sm font-semibold text-board-ink">{choice.text}</div>
-                  <div className="mt-1 text-xs text-state-paper-dim">
-                    Success {p.success}% · Partial {p.partial}% · Failure {p.failure}%
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-        {state.eventStep === 'rolling' ? (
-          <div className="mt-6 flex items-center justify-center">
-            <div className="dice-cube">d100</div>
-          </div>
-        ) : null}
-        {state.eventStep === 'revealed' && state.diceResult ? (
-          <div className={cn('mt-5 space-y-2 p-3', panelInset)}>
-            <p className={labelMeta}>Dice result</p>
-            <div className="font-display text-2xl font-bold text-board-ink">Roll {state.diceResult.roll}</div>
-            <div className="text-sm font-semibold text-state-paper">{state.lastOutcomeSummary}</div>
-            <div className="text-xs text-state-paper-dim">
-              Success ≤ {state.diceResult.threshold.success}, partial ≤{' '}
-              {state.diceResult.threshold.success + state.diceResult.threshold.partial}
-            </div>
-            {selectedOutcome ? (
-              <div className="pt-1 text-xs text-state-paper-dim">
-                {formatStatPreview(selectedOutcome.statDeltas).join(' · ')}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        {state.eventStep === 'applied' ? (
-          <div className={cn('mt-5 space-y-3 p-3', panelInset)}>
-            <p className={labelMeta}>Applied changes</p>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-state-paper">
-              {formatStatPreview(state.statChangesPreview ?? {}).map((line, i) => (
-                <li key={`s-${i}`}>{line}</li>
-              ))}
-              {formatResourcePreview(state.resourceChangesPreview ?? {}).map((line, i) => (
-                <li key={`r-${i}`}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {event.outcomePreview && state.eventStep === 'choice' ? (
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-md border border-faction-people/30 bg-faction-people/5 p-3">
-              <p className={cn(labelMeta, 'text-faction-people')}>Success</p>
-              <p className="mt-1 text-xs leading-relaxed text-state-paper-dim">{event.outcomePreview.success}</p>
-            </div>
-            <div className="rounded-md border border-faction-danger/30 bg-faction-danger/5 p-3">
-              <p className={cn(labelMeta, 'text-faction-danger')}>Failure</p>
-              <p className="mt-1 text-xs leading-relaxed text-state-paper-dim">{event.outcomePreview.failure}</p>
-            </div>
-          </div>
-        ) : null}
-        {state.eventStep === 'choice' ? (
-          <div className="mt-5">
-            <p className={labelMeta}>Baseline effects</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-state-paper">
-              {effectLines.map((line, i) => (
-                <li key={i}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {error ? <div className="mt-3 text-xs text-faction-danger">{error}</div> : null}
-        {state.eventStep === 'revealed' ? (
-          <Button variant="primary" size="lg" className="mt-6 w-full" onClick={() => applyEventOutcome()}>
-            Apply outcome
-          </Button>
-        ) : null}
-        {state.eventStep === 'applied' ? (
-          <Button variant="primary" size="lg" className="mt-6 w-full" onClick={() => continueEvent()}>
-            Continue cycle
-          </Button>
-        ) : null}
-        {selectedChoice && state.eventStep === 'rolling' ? (
-          <p className="mt-4 text-center text-xs text-state-paper-dim">Resolving: {selectedChoice.text}</p>
-        ) : null}
-      </div>
-    </div>
+                  <motion.div
+                    className="rounded-md border border-faction-people/30 bg-faction-people/5 p-3"
+                    whileHover={reduced ? undefined : { y: -1 }}
+                    transition={transitions.hover}
+                  >
+                    <p className={cn(labelMeta, 'text-faction-people')}>Success</p>
+                    <p className="mt-1 text-xs leading-relaxed text-state-paper-dim">
+                      {event.outcomePreview.success}
+                    </p>
+                  </motion.div>
+                  <motion.div
+                    className="rounded-md border border-faction-danger/30 bg-faction-danger/5 p-3"
+                    whileHover={reduced ? undefined : { y: -1 }}
+                    transition={transitions.hover}
+                  >
+                    <p className={cn(labelMeta, 'text-faction-danger')}>Failure</p>
+                    <p className="mt-1 text-xs leading-relaxed text-state-paper-dim">
+                      {event.outcomePreview.failure}
+                    </p>
+                  </motion.div>
+                </motion.div>
+              ) : null}
+
+              {state.eventStep === 'choice' ? (
+                <motion.div className="mt-5" variants={staggerItem}>
+                  <p className={labelMeta}>Baseline effects</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-state-paper">
+                    {effectLines.map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                </motion.div>
+              ) : null}
+
+              {error ? <div className="mt-3 text-xs text-faction-danger">{error}</div> : null}
+
+              {state.eventStep === 'revealed' ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: reduced ? 0 : 0.15, ...transitions.ui }}
+                >
+                  <Button variant="primary" size="lg" className="mt-6 w-full" onClick={() => applyEventOutcome()}>
+                    Apply outcome
+                  </Button>
+                </motion.div>
+              ) : null}
+              {state.eventStep === 'applied' ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={transitions.ui}
+                >
+                  <Button variant="primary" size="lg" className="mt-6 w-full" onClick={() => continueEvent()}>
+                    Continue cycle
+                  </Button>
+                </motion.div>
+              ) : null}
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }

@@ -30,7 +30,8 @@ type LayerRuntime = {
 
 const FADE_TICK_MS = 50;
 const CROSSFADE_RATE = 0.04;
-const BED_FADE_RATE = 0.006;
+const BED_FADE_RATE = 0.018;
+const BASE_AMBIENT_ID: MusicLayerId = 'base_ambient';
 const GAMEPLAY_FADE_RATE = 0.025;
 const HOWL_LOAD_TIMEOUT_MS = 6000;
 
@@ -62,6 +63,7 @@ export class AudioManager {
   private gameOverMode = false;
   private gameplayFadeRate = CROSSFADE_RATE;
   private unlockInFlight = false;
+  private bedBaseTarget = 0;
 
   configure(settings: AudioSettings): void {
     this.settings = settings;
@@ -123,31 +125,62 @@ export class AudioManager {
     }
   }
 
+  async ensureBaseAmbient(): Promise<void> {
+    if (!this.unlocked || this.disposed || this.settings.muted) return;
+
+    const gain = this.effectiveMusicGain();
+    this.bedBaseTarget = 0.34 * gain;
+
+    let baseRuntime = this.layers.get(BASE_AMBIENT_ID);
+    if (!baseRuntime) {
+      baseRuntime = { howl: null, currentVolume: 0, targetVolume: 0, useProcedural: false };
+      this.layers.set(BASE_AMBIENT_ID, baseRuntime);
+    }
+    baseRuntime.targetVolume = this.bedBaseTarget;
+
+    const loaded = await this.ensureHowl(BASE_AMBIENT_ID);
+    if (loaded && !loaded.failed) {
+      baseRuntime.howl = loaded.howl;
+      baseRuntime.useProcedural = false;
+      this.procedural.stopLoop(BASE_AMBIENT_ID);
+      if (!loaded.howl.playing()) {
+        loaded.howl.play();
+      }
+      if (baseRuntime.currentVolume <= 0.02) {
+        baseRuntime.currentVolume = 0.04;
+        this.applyLayerVolume(BASE_AMBIENT_ID, baseRuntime, baseRuntime.currentVolume);
+      }
+      this.log(`base_ambient playback started (${loaded.def.src[0]})`);
+      return;
+    }
+
+    if (!baseRuntime.useProcedural) {
+      baseRuntime.useProcedural = true;
+      this.procedural.startLoop(BASE_AMBIENT_ID, 0);
+      this.log('base_ambient playback started (procedural fallback)');
+    }
+  }
+
   async startGameplayBed(): Promise<void> {
     if (!this.unlocked || this.disposed || this.settings.muted || this.gameOverMode) return;
-    if (this.musicBedStarted) return;
+    if (this.musicBedStarted) {
+      void this.ensureBaseAmbient();
+      return;
+    }
 
     this.musicBedStarted = true;
     this.bedFadingIn = true;
     window.setTimeout(() => {
       this.bedFadingIn = false;
-    }, 3500);
-
-    void this.preloadLoops();
+    }, 2200);
 
     const gain = this.effectiveMusicGain();
-    const baseTarget = 0.34 * gain;
+    this.bedBaseTarget = 0.34 * gain;
 
-    let baseRuntime = this.layers.get('base_ambient');
-    if (!baseRuntime) {
-      baseRuntime = { howl: null, currentVolume: 0, targetVolume: 0, useProcedural: false };
-      this.layers.set('base_ambient', baseRuntime);
-    }
-    baseRuntime.currentVolume = 0;
-    baseRuntime.targetVolume = baseTarget;
-    void this.startLayer('base_ambient', baseRuntime, true);
+    await this.ensureBaseAmbient();
 
     this.setAmbienceTarget('industrial_hum', 0.1 * gain);
+    void this.preloadLoops();
     this.log('gameplay bed started');
   }
 
@@ -251,8 +284,12 @@ export class AudioManager {
     this.lastAtmosphere = profile;
 
     const layerTargets = computeLayerTargets(profile);
+    const gain = this.effectiveMusicGain();
     for (const id of MUSIC_LAYER_IDS) {
-      const target = (layerTargets[id] ?? 0) * this.effectiveMusicGain();
+      let target = (layerTargets[id] ?? 0) * gain;
+      if (id === BASE_AMBIENT_ID && this.musicBedStarted && !this.gameOverMode) {
+        target = Math.max(target, this.bedBaseTarget);
+      }
       this.setMusicLayerTarget(id, target);
     }
 
@@ -424,7 +461,9 @@ export class AudioManager {
     const def = MANIFEST_BY_ID.get(layerId);
     if (!def) return;
 
-    if (def.procedural && !runtime.useProcedural) {
+    const preferFileFirst = layerId === BASE_AMBIENT_ID || !def.procedural;
+
+    if (!preferFileFirst && def.procedural && !runtime.useProcedural) {
       runtime.useProcedural = true;
       this.procedural.startLoop(layerId as AmbienceLoopId & MusicLayerId, 0);
       this.log(`track loaded (procedural loop): ${layerId}`);
@@ -433,6 +472,10 @@ export class AudioManager {
     const loaded = await this.ensureHowl(layerId);
     if (loaded && !loaded.failed) {
       runtime.howl = loaded.howl;
+      if (runtime.useProcedural) {
+        this.procedural.stopLoop(layerId);
+        runtime.useProcedural = false;
+      }
       if (!loaded.howl.playing()) {
         loaded.howl.play();
       }
@@ -482,6 +525,9 @@ export class AudioManager {
     const diff = runtime.targetVolume - runtime.currentVolume;
     if (Math.abs(diff) < 0.001) {
       if (runtime.targetVolume <= 0.02 && runtime.currentVolume > 0) {
+        if (id === BASE_AMBIENT_ID && this.musicBedStarted && !this.gameOverMode) {
+          return;
+        }
         this.stopLayer(runtime, id);
         if (isMusic) this.layers.delete(id as MusicLayerId);
         else this.ambience.delete(id as AmbienceLoopId);
@@ -544,6 +590,11 @@ export class AudioManager {
 
       window.setTimeout(() => {
         if (settled) return;
+        if (howl.state() === 'loaded') {
+          this.log(`file loaded (post-timeout): ${soundId}`);
+          finish({ howl, def, failed: false });
+          return;
+        }
         this.log(`load timeout: ${soundId}`);
         finish({ howl, def, failed: true });
       }, HOWL_LOAD_TIMEOUT_MS);

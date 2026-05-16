@@ -178,6 +178,39 @@ export class ProceduralAudioEngine {
         osc.stop(t + 0.32);
         break;
       }
+      case 'button_hover': {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = 240;
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0.0001, t);
+        env.gain.linearRampToValueAtTime(0.022, t + 0.008);
+        env.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+        osc.connect(env);
+        env.connect(g);
+        osc.start(t);
+        osc.stop(t + 0.06);
+        break;
+      }
+      case 'warning_sting': {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, t);
+        osc.frequency.exponentialRampToValueAtTime(70, t + 0.35);
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0.0001, t);
+        env.gain.linearRampToValueAtTime(0.06, t + 0.04);
+        env.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 350;
+        osc.connect(filter);
+        filter.connect(env);
+        env.connect(g);
+        osc.start(t);
+        osc.stop(t + 0.42);
+        break;
+      }
       case 'failure_reveal': {
         const osc = ctx.createOscillator();
         osc.type = 'sawtooth';
@@ -232,6 +265,58 @@ export class ProceduralAudioEngine {
       env.connect(g);
       osc.start(t);
       osc.stop(t + 0.7);
+      return;
+    }
+
+    if (id === 'victory_sting') {
+      const freqs = [130.81, 164.81, 196, 261.63];
+      freqs.forEach((f, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = f;
+        const env = ctx.createGain();
+        const start = t + i * 0.07;
+        env.gain.setValueAtTime(0.0001, start);
+        env.gain.linearRampToValueAtTime(0.04, start + 0.06);
+        env.gain.exponentialRampToValueAtTime(0.0001, start + 0.5);
+        osc.connect(env);
+        env.connect(g);
+        osc.start(start);
+        osc.stop(start + 0.55);
+      });
+      return;
+    }
+
+    if (id === 'survival_sting') {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(88, t);
+      osc.frequency.linearRampToValueAtTime(82, t + 1.2);
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t);
+      env.gain.linearRampToValueAtTime(0.045, t + 0.3);
+      env.gain.setValueAtTime(0.035, t + 0.8);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+      osc.connect(env);
+      env.connect(g);
+      osc.start(t);
+      osc.stop(t + 1.45);
+      return;
+    }
+
+    if (id === 'failure_collapse') {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(50, t);
+      osc.frequency.exponentialRampToValueAtTime(28, t + 1.5);
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t);
+      env.gain.linearRampToValueAtTime(0.08, t + 0.2);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+      osc.connect(env);
+      env.connect(g);
+      osc.start(t);
+      osc.stop(t + 1.65);
       return;
     }
 

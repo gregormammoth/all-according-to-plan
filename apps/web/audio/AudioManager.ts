@@ -30,6 +30,13 @@ type LayerRuntime = {
 
 const FADE_TICK_MS = 50;
 const CROSSFADE_RATE = 0.04;
+const BED_FADE_RATE = 0.006;
+const GAMEPLAY_FADE_RATE = 0.025;
+const HOWL_LOAD_TIMEOUT_MS = 6000;
+
+const IS_DEV = typeof process !== 'undefined' && process.env.NODE_ENV === 'development';
+
+const GAME_OVER_STINGS: SoundId[] = ['victory_sting', 'survival_sting', 'failure_collapse'];
 
 export class AudioManager {
   private cache = new Map<SoundId, LoadedHowl>();
@@ -48,7 +55,13 @@ export class AudioManager {
   private fadeTimer: ReturnType<typeof setInterval> | null = null;
   private lastAtmosphere: AtmosphereProfile | null = null;
   private sirenTimer: ReturnType<typeof setInterval> | null = null;
-  private debug = false;
+  private debug = IS_DEV;
+  private musicBedStarted = false;
+  private bedFadingIn = false;
+  private fadingOut = false;
+  private gameOverMode = false;
+  private gameplayFadeRate = CROSSFADE_RATE;
+  private unlockInFlight = false;
 
   configure(settings: AudioSettings): void {
     this.settings = settings;
@@ -64,28 +77,132 @@ export class AudioManager {
     return this.unlocked;
   }
 
+  enterGameOverMode(): void {
+    this.gameOverMode = true;
+    this.log('game over mode');
+  }
+
+  exitGameOverMode(): void {
+    this.gameOverMode = false;
+    this.fadingOut = false;
+    this.gameplayFadeRate = CROSSFADE_RATE;
+    this.log('exit game over mode');
+  }
+
   async unlock(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
     if (this.unlocked) return true;
+    if (this.unlockInFlight) return true;
 
-    const ctx = Howler.ctx;
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
+    this.unlockInFlight = true;
+    try {
+      const ctx = Howler.ctx;
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      source.stop(0);
+
+      this.procedural.attachContext(ctx);
+      this.unlocked = true;
+      this.startFadeLoop();
+      this.scheduleSirens();
+      this.log('audio unlocked');
+      void this.startGameplayBed();
+      return true;
+    } catch (err) {
+      this.log(`unlock failed: ${String(err)}`);
+      return false;
+    } finally {
+      this.unlockInFlight = false;
+    }
+  }
+
+  async startGameplayBed(): Promise<void> {
+    if (!this.unlocked || this.disposed || this.settings.muted || this.gameOverMode) return;
+    if (this.musicBedStarted) return;
+
+    this.musicBedStarted = true;
+    this.bedFadingIn = true;
+    window.setTimeout(() => {
+      this.bedFadingIn = false;
+    }, 3500);
+
+    void this.preloadLoops();
+
+    const gain = this.effectiveMusicGain();
+    const baseTarget = 0.34 * gain;
+
+    let baseRuntime = this.layers.get('base_ambient');
+    if (!baseRuntime) {
+      baseRuntime = { howl: null, currentVolume: 0, targetVolume: 0, useProcedural: false };
+      this.layers.set('base_ambient', baseRuntime);
+    }
+    baseRuntime.currentVolume = 0;
+    baseRuntime.targetVolume = baseTarget;
+    void this.startLayer('base_ambient', baseRuntime, true);
+
+    this.setAmbienceTarget('industrial_hum', 0.1 * gain);
+    this.log('gameplay bed started');
+  }
+
+  fadeOutGameplay(durationMs = 1400): void {
+    if (!this.unlocked) return;
+    this.fadingOut = true;
+    this.gameplayFadeRate = GAMEPLAY_FADE_RATE * 1.8;
+    for (const id of MUSIC_LAYER_IDS) {
+      this.setMusicLayerTarget(id, 0);
+    }
+    for (const id of AMBIENCE_LOOP_IDS) {
+      this.setAmbienceTarget(id, 0);
+    }
+    this.musicBedStarted = false;
+    this.log(`gameplay fade out ${durationMs}ms`);
+    window.setTimeout(() => {
+      if (!this.gameOverMode) {
+        this.fadingOut = false;
+        this.gameplayFadeRate = CROSSFADE_RATE;
+      }
+    }, durationMs);
+  }
+
+  async restartGameplayBed(): Promise<void> {
+    this.exitGameOverMode();
+    this.musicBedStarted = false;
+    await this.startGameplayBed();
+  }
+
+  playGameOverSuite(type: 'victory' | 'survival' | 'failure'): void {
+    if (!this.unlocked || this.disposed || this.settings.muted) return;
+    const gain = this.effectiveMusicGain();
+
+    if (type === 'victory') {
+      this.play('victory_sting', { volume: 0.48, force: true });
+      this.setAmbienceTarget('crowd_murmur', 0.06 * gain);
+      this.log('game over suite: victory');
+      return;
     }
 
-    const buffer = ctx.createBuffer(1, 1, 22050);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.start(0);
-    source.stop(0);
+    if (type === 'survival') {
+      this.play('survival_sting', { volume: 0.4, force: true });
+      this.setAmbienceTarget('radio_static', 0.08 * gain);
+      this.setMusicLayerTarget('base_ambient', 0.12 * gain);
+      this.log('game over suite: survival');
+      return;
+    }
 
-    this.procedural.attachContext(ctx);
-    this.unlocked = true;
-    this.startFadeLoop();
-    this.scheduleSirens();
-    this.log('audio unlocked');
-    return true;
+    this.play('failure_collapse', { volume: 0.52, force: true });
+    this.setMusicLayerTarget('collapse_alarm', 0.38 * gain);
+    this.setAmbienceTarget('military_drone', 0.15 * gain);
+    window.setTimeout(() => {
+      this.play('distant_siren', { volume: 0.32, force: true });
+    }, 700);
+    this.log('game over suite: failure');
   }
 
   async preloadCategories(categories: SoundCategory[]): Promise<void> {
@@ -100,7 +217,8 @@ export class AudioManager {
   }
 
   play(soundId: SoundId, options: PlayOptions = {}): void {
-    if (!this.unlocked || this.disposed || this.settings.muted) return;
+    if (this.disposed) return;
+    if (!this.unlocked || this.settings.muted) return;
     if (!options.force && this.isLoopSound(soundId)) return;
 
     const def = MANIFEST_BY_ID.get(soundId);
@@ -116,12 +234,12 @@ export class AudioManager {
       return;
     }
 
-    void this.playOneShot(soundId, options);
+    this.playOneShot(soundId, options);
   }
 
   playPositional(soundId: SoundId, options: PositionalSoundOptions): void {
     if (!this.unlocked || this.disposed || this.settings.muted) return;
-    void this.playOneShot(soundId, options, {
+    this.playOneShot(soundId, options, {
       x: options.x,
       y: options.y,
       z: options.z,
@@ -129,7 +247,7 @@ export class AudioManager {
   }
 
   updateAtmosphere(profile: AtmosphereProfile): void {
-    if (!this.unlocked || this.disposed) return;
+    if (!this.unlocked || this.disposed || this.gameOverMode || this.fadingOut) return;
     this.lastAtmosphere = profile;
 
     const layerTargets = computeLayerTargets(profile);
@@ -152,7 +270,10 @@ export class AudioManager {
     }
 
     if (profile.isElectionRound && profile.phase === 'event_modal') {
-      this.setAmbienceTarget('military_drone', Math.max(ambTargets.military_drone ?? 0, 0.22) * this.effectiveMusicGain());
+      this.setAmbienceTarget(
+        'military_drone',
+        Math.max(ambTargets.military_drone ?? 0, 0.22) * this.effectiveMusicGain()
+      );
     }
   }
 
@@ -199,36 +320,76 @@ export class AudioManager {
     this.ambience.clear();
     this.procedural.dispose();
     this.unlocked = false;
+    this.musicBedStarted = false;
+    this.gameOverMode = false;
   }
 
-  private async playOneShot(
+  private playOneShot(
     soundId: SoundId,
     options: PlayOptions,
     position?: { x: number; y: number; z: number }
-  ): Promise<void> {
+  ): void {
     const def = MANIFEST_BY_ID.get(soundId);
     if (!def) return;
 
-    const loaded = await this.ensureHowl(soundId);
     const vol = (options.volume ?? def.volume ?? 1) * this.effectiveSfxGain();
 
-    if (loaded && !loaded.failed) {
-      const id = loaded.howl.play();
-      loaded.howl.volume(vol, id);
-      if (options.rate) loaded.howl.rate(options.rate, id);
-      if (position && def.spatial) {
-        loaded.howl.pos(position.x, position.y, position.z, id);
+    if (def.procedural && this.prefersImmediatePlayback(soundId)) {
+      const cached = this.cache.get(soundId);
+      if (cached && !cached.failed) {
+        const playId = cached.howl.play();
+        cached.howl.volume(vol, playId);
+        if (options.rate) cached.howl.rate(options.rate, playId);
+        if (position && def.spatial) {
+          cached.howl.pos(position.x, position.y, position.z, playId);
+        }
+        this.log(`playback started (cached): ${soundId}`);
+        return;
       }
+
+      this.playProceduralShot(soundId, vol);
+      this.log(`playback started (procedural): ${soundId}`);
+      void this.ensureHowl(soundId);
       return;
     }
 
-    if (def.procedural) {
-      if (this.isUiSound(soundId)) {
-        this.procedural.playUi(soundId, vol);
-      } else {
-        this.procedural.playOneShot(soundId, vol);
+    void this.ensureHowl(soundId).then((loaded) => {
+      if (this.disposed) return;
+      if (loaded && !loaded.failed) {
+        const playId = loaded.howl.play();
+        loaded.howl.volume(vol, playId);
+        if (options.rate) loaded.howl.rate(options.rate, playId);
+        if (position && def.spatial) {
+          loaded.howl.pos(position.x, position.y, position.z, playId);
+        }
+        this.log(`playback started: ${soundId}`);
+        return;
       }
+      if (def.procedural) {
+        this.playProceduralShot(soundId, vol);
+        this.log(`playback started (procedural fallback): ${soundId}`);
+      } else {
+        this.log(`playback failed: ${soundId}`);
+      }
+    });
+  }
+
+  private playProceduralShot(soundId: SoundId, vol: number): void {
+    if (this.isUiSound(soundId)) {
+      this.procedural.playUi(soundId, vol);
+    } else {
+      this.procedural.playOneShot(soundId, vol);
     }
+  }
+
+  private prefersImmediatePlayback(soundId: SoundId): boolean {
+    return (
+      this.isUiSound(soundId) ||
+      GAME_OVER_STINGS.includes(soundId) ||
+      soundId === 'distant_siren' ||
+      soundId === 'event_sting' ||
+      soundId === 'election_sting'
+    );
   }
 
   private setMusicLayerTarget(layerId: MusicLayerId, target: number): void {
@@ -238,7 +399,7 @@ export class AudioManager {
       this.layers.set(layerId, runtime);
     }
     runtime.targetVolume = target;
-    if (target > 0.02 && runtime.currentVolume <= 0.02) {
+    if (target > 0.02 && runtime.currentVolume <= 0.02 && !runtime.howl && !runtime.useProcedural) {
       void this.startLayer(layerId, runtime, true);
     }
   }
@@ -250,7 +411,7 @@ export class AudioManager {
       this.ambience.set(layerId, runtime);
     }
     runtime.targetVolume = target;
-    if (target > 0.02 && runtime.currentVolume <= 0.02) {
+    if (target > 0.02 && runtime.currentVolume <= 0.02 && !runtime.howl && !runtime.useProcedural) {
       void this.startLayer(layerId, runtime, false);
     }
   }
@@ -258,24 +419,31 @@ export class AudioManager {
   private async startLayer(
     layerId: MusicLayerId | AmbienceLoopId,
     runtime: LayerRuntime,
-    isMusic: boolean
+    _isMusic: boolean
   ): Promise<void> {
     const def = MANIFEST_BY_ID.get(layerId);
     if (!def) return;
 
+    if (def.procedural && !runtime.useProcedural) {
+      runtime.useProcedural = true;
+      this.procedural.startLoop(layerId as AmbienceLoopId & MusicLayerId, 0);
+      this.log(`track loaded (procedural loop): ${layerId}`);
+    }
+
     const loaded = await this.ensureHowl(layerId);
     if (loaded && !loaded.failed) {
       runtime.howl = loaded.howl;
-      runtime.useProcedural = false;
       if (!loaded.howl.playing()) {
         loaded.howl.play();
       }
+      this.log(`track loaded: ${layerId}`);
       return;
     }
 
-    if (def.procedural) {
+    if (def.procedural && !runtime.useProcedural) {
       runtime.useProcedural = true;
       this.procedural.startLoop(layerId as AmbienceLoopId & MusicLayerId, 0);
+      this.log(`track loaded (procedural loop fallback): ${layerId}`);
     }
   }
 
@@ -290,6 +458,8 @@ export class AudioManager {
     }
     runtime.currentVolume = 0;
     runtime.targetVolume = 0;
+    runtime.useProcedural = false;
+    runtime.howl = null;
   }
 
   private startFadeLoop(): void {
@@ -318,7 +488,10 @@ export class AudioManager {
       }
       return;
     }
-    const step = Math.sign(diff) * Math.min(Math.abs(diff), CROSSFADE_RATE);
+    let rate = CROSSFADE_RATE;
+    if (this.bedFadingIn) rate = BED_FADE_RATE;
+    else if (this.fadingOut) rate = this.gameplayFadeRate;
+    const step = Math.sign(diff) * Math.min(Math.abs(diff), rate);
     runtime.currentVolume += step;
     this.applyLayerVolume(id, runtime, runtime.currentVolume);
   }
@@ -344,26 +517,36 @@ export class AudioManager {
     if (!def) return null;
 
     const promise = new Promise<LoadedHowl | null>((resolve) => {
+      let settled = false;
+
+      const finish = (entry: LoadedHowl) => {
+        if (settled) return;
+        settled = true;
+        this.cache.set(soundId, entry);
+        this.loading.delete(soundId);
+        resolve(entry);
+      };
+
       const howl = new Howl({
         src: def.src,
         loop: def.loop ?? false,
         volume: 0,
         preload: def.preload ?? true,
-        html5: def.loop ? true : false,
+        html5: false,
         onload: () => {
-          const entry: LoadedHowl = { howl, def, failed: false };
-          this.cache.set(soundId, entry);
-          this.loading.delete(soundId);
-          resolve(entry);
+          finish({ howl, def, failed: false });
         },
-        onloaderror: () => {
-          const entry: LoadedHowl = { howl, def, failed: true };
-          this.cache.set(soundId, entry);
-          this.loading.delete(soundId);
-          this.log(`load failed: ${soundId}, procedural fallback`);
-          resolve(entry);
+        onloaderror: (_id, err) => {
+          this.log(`load failed: ${soundId} (${String(err)})`);
+          finish({ howl, def, failed: true });
         },
       });
+
+      window.setTimeout(() => {
+        if (settled) return;
+        this.log(`load timeout: ${soundId}`);
+        finish({ howl, def, failed: true });
+      }, HOWL_LOAD_TIMEOUT_MS);
     });
 
     this.loading.set(soundId, promise);
@@ -373,7 +556,7 @@ export class AudioManager {
   private scheduleSirens(): void {
     if (this.sirenTimer) return;
     this.sirenTimer = setInterval(() => {
-      if (!this.lastAtmosphere || this.settings.muted) return;
+      if (!this.lastAtmosphere || this.settings.muted || this.gameOverMode) return;
       if (this.lastAtmosphere.stability > 45 && !this.lastAtmosphere.nearCollapse) return;
       if (Math.random() > 0.35) return;
       this.play('distant_siren', { volume: 0.25 });
@@ -408,7 +591,9 @@ export class AudioManager {
       id === 'dice_roll' ||
       id === 'success_reveal' ||
       id === 'partial_reveal' ||
-      id === 'failure_reveal'
+      id === 'failure_reveal' ||
+      id === 'button_hover' ||
+      id === 'warning_sting'
     );
   }
 

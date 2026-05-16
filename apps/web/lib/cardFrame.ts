@@ -16,8 +16,7 @@ export function cardFrameClass(type: string, options?: { highlighted?: boolean; 
     options?.highlighted &&
       'ring-1 ring-state-amber/50 ring-offset-2 ring-offset-state-charcoal border-state-amber/55 shadow-card-hover',
     options?.disabled && 'game-card-disabled opacity-40 grayscale-[0.3]',
-    !options?.disabled &&
-      'hover:-translate-y-1.5 hover:scale-[1.02] active:translate-y-0 active:scale-[0.99] active:shadow-card-pressed'
+    !options?.disabled && 'active:shadow-card-pressed'
   );
 }
 

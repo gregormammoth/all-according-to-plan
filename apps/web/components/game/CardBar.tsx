@@ -47,7 +47,7 @@ export function CardBar() {
   };
 
   return (
-    <Panel className="!p-4">
+    <Panel bleed className="!p-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -112,7 +112,7 @@ export function CardBar() {
         >
           ›
         </button>
-        <div ref={scrollRef} className="scroll-hand flex gap-3 overflow-x-auto scroll-smooth px-0 pb-2 sm:px-10">
+        <div ref={scrollRef} className="hand-strip scroll-hand flex gap-3 scroll-smooth px-0 sm:px-10">
           {state.hand.map((id) => {
             const card = library.get(id);
             if (!card) return null;

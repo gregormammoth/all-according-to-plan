@@ -26,13 +26,20 @@ export function useGameAudio(): void {
   const eventModalOpen = useGameStore((s) => s.eventModal.isOpen);
   const event = useGameStore((s) => s.eventModal.event);
 
-  const prevPhase = useRef(state.phase);
   const prevStep = useRef(state.eventStep);
   const prevModalOpen = useRef(eventModalOpen);
   const prevActions = useRef(state.playerActionsUsed);
+  const bedStarted = useRef(false);
 
   useEffect(() => {
-    if (!unlocked) return;
+    if (!unlocked || state.phase === 'game_over') return;
+    if (bedStarted.current) return;
+    bedStarted.current = true;
+    void getAudioManager().startGameplayBed();
+  }, [unlocked, state.phase]);
+
+  useEffect(() => {
+    if (!unlocked || state.phase === 'game_over') return;
 
     const stability = calculateStabilityIndex(state.stats);
     const profile = computeAtmosphereFromStats(
@@ -47,7 +54,7 @@ export function useGameAudio(): void {
   }, [unlocked, state.stats, state.round, state.phase, state.eventHistory]);
 
   useEffect(() => {
-    if (!unlocked) return;
+    if (!unlocked || state.phase === 'game_over') return;
 
     if (
       state.playerActionsUsed >= state.maxPlayerActionsPerRound &&
@@ -66,7 +73,7 @@ export function useGameAudio(): void {
   ]);
 
   useEffect(() => {
-    if (!unlocked) return;
+    if (!unlocked || state.phase === 'game_over') return;
 
     if (eventModalOpen && !prevModalOpen.current) {
       const election = event?.type === 'election';
@@ -74,19 +81,10 @@ export function useGameAudio(): void {
       play(election ? 'election_sting' : 'event_sting');
     }
     prevModalOpen.current = eventModalOpen;
-  }, [unlocked, play, eventModalOpen, event?.type]);
+  }, [unlocked, play, eventModalOpen, event?.type, state.phase]);
 
   useEffect(() => {
-    if (!unlocked) return;
-
-    if (state.phase === 'event_modal' && prevPhase.current !== 'event_modal') {
-      /* atmosphere handles layers */
-    }
-    prevPhase.current = state.phase;
-  }, [unlocked, state.phase]);
-
-  useEffect(() => {
-    if (!unlocked) return;
+    if (!unlocked || state.phase === 'game_over') return;
     if (state.eventStep === 'rolling' && prevStep.current !== 'rolling') {
       play('dice_roll');
     }
@@ -96,5 +94,5 @@ export function useGameAudio(): void {
       else play('failure_reveal');
     }
     prevStep.current = state.eventStep;
-  }, [unlocked, play, state.eventStep, state.diceResult]);
+  }, [unlocked, play, state.eventStep, state.diceResult, state.phase]);
 }

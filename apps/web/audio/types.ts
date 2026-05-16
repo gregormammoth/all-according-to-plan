@@ -25,7 +25,11 @@ export type UiSoundId =
   | 'dice_roll'
   | 'success_reveal'
   | 'partial_reveal'
-  | 'failure_reveal';
+  | 'failure_reveal'
+  | 'button_hover'
+  | 'warning_sting';
+
+export type GameOverSoundId = 'victory_sting' | 'survival_sting' | 'failure_collapse';
 
 export type EventSoundId =
   | 'event_sting'
@@ -34,7 +38,13 @@ export type EventSoundId =
 
 export type WorldOneShotId = 'distant_siren';
 
-export type SoundId = UiSoundId | EventSoundId | WorldOneShotId | AmbienceLoopId | MusicLayerId;
+export type SoundId =
+  | UiSoundId
+  | EventSoundId
+  | WorldOneShotId
+  | AmbienceLoopId
+  | MusicLayerId
+  | GameOverSoundId;
 
 export type AudioSettings = {
   masterVolume: number;

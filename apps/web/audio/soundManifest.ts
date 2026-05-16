@@ -4,7 +4,7 @@ const base = '/audio';
 
 function src(path: string): string[] {
   const stem = path.replace(/\.(ogg|mp3|wav)$/, '');
-  return [`${stem}.ogg`, `${stem}.mp3`];
+  return [`${stem}.ogg`, `${stem}.mp3`, `${stem}.wav`];
 }
 
 export const UI_SOUNDS: SoundDefinition[] = [
@@ -18,6 +18,14 @@ export const UI_SOUNDS: SoundDefinition[] = [
   { id: 'success_reveal', category: 'ui', src: src(`${base}/ui/success-reveal.ogg`), volume: 0.42, procedural: true },
   { id: 'partial_reveal', category: 'ui', src: src(`${base}/ui/partial-reveal.ogg`), volume: 0.38, procedural: true },
   { id: 'failure_reveal', category: 'ui', src: src(`${base}/ui/failure-reveal.ogg`), volume: 0.48, procedural: true },
+  { id: 'button_hover', category: 'ui', src: src(`${base}/ui/card-hover.ogg`), volume: 0.16, procedural: true },
+  { id: 'warning_sting', category: 'ui', src: src(`${base}/ui/warning-sting.ogg`), volume: 0.38, procedural: true },
+];
+
+export const GAME_OVER_SOUNDS: SoundDefinition[] = [
+  { id: 'victory_sting', category: 'music', src: src(`${base}/music/victory-sting.ogg`), volume: 0.5, procedural: true },
+  { id: 'survival_sting', category: 'music', src: src(`${base}/music/survival-sting.ogg`), volume: 0.42, procedural: true },
+  { id: 'failure_collapse', category: 'music', src: src(`${base}/music/failure-collapse.ogg`), volume: 0.55, procedural: true },
 ];
 
 export const EVENT_SOUNDS: SoundDefinition[] = [
@@ -58,6 +66,7 @@ export const SOUND_MANIFEST: SoundDefinition[] = [
   ...WORLD_SOUNDS,
   ...AMBIENCE_LOOPS,
   ...MUSIC_LAYERS,
+  ...GAME_OVER_SOUNDS,
 ];
 
 export const MANIFEST_BY_ID = new Map(SOUND_MANIFEST.map((s) => [s.id, s]));

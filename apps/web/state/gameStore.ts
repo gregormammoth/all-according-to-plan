@@ -12,6 +12,13 @@ import {
 } from '@all-according-to-plan/game-engine';
 import type { GameEvent, GameState, ResourceType } from '@all-according-to-plan/shared';
 import { create } from 'zustand';
+import { getAudioManager } from '@/audio/AudioManager';
+import {
+  applyRoundSnapshot,
+  canResetRound,
+  captureRoundSnapshot,
+  type RoundSnapshot,
+} from './roundSnapshot';
 
 type EventModalState = {
   isOpen: boolean;
@@ -25,12 +32,20 @@ function eventModalFromGameState(state: GameState): EventModalState {
   return { isOpen: false, event: null };
 }
 
+function afterPlayerPhaseTransition(state: GameState) {
+  return {
+    state,
+    eventModal: eventModalFromGameState(state),
+  };
+}
+
 type GameStore = {
   state: GameState;
   library: CardLibrary;
   error: string | null;
   playSelectMode: boolean;
   eventModal: EventModalState;
+  roundSnapshot: RoundSnapshot | null;
   togglePlaySelectMode: () => void;
   play: (cardId: string) => void;
   draw: () => void;
@@ -39,17 +54,21 @@ type GameStore = {
   rollEvent: () => void;
   applyEventOutcome: () => void;
   continueEvent: () => void;
+  resetRound: () => void;
   reset: () => void;
 };
 
 const initialModal: EventModalState = { isOpen: false, event: null };
+const initialState = createInitialState();
+const initialSnapshot = captureRoundSnapshot(initialState);
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  state: createInitialState(),
+  state: initialState,
   library: getDefaultLibrary(),
   error: null,
   playSelectMode: false,
   eventModal: initialModal,
+  roundSnapshot: initialSnapshot,
   togglePlaySelectMode: () => {
     set({ playSelectMode: !get().playSelectMode, error: null });
   },
@@ -64,10 +83,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
     set({
-      state: res.state,
+      ...afterPlayerPhaseTransition(res.state),
       error: null,
       playSelectMode: false,
-      eventModal: eventModalFromGameState(res.state),
     });
   },
   draw: () => {
@@ -77,10 +95,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
     set({
-      state: res.state,
+      ...afterPlayerPhaseTransition(res.state),
       error: null,
       playSelectMode: false,
-      eventModal: eventModalFromGameState(res.state),
     });
   },
   gain: (resource) => {
@@ -90,10 +107,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
     set({
-      state: res.state,
+      ...afterPlayerPhaseTransition(res.state),
       error: null,
       playSelectMode: false,
-      eventModal: eventModalFromGameState(res.state),
     });
   },
   selectEventChoice: (choiceId) => {
@@ -141,19 +157,49 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ error: res.error });
       return;
     }
+    const nextSnapshot =
+      res.state.phase === 'player' ? captureRoundSnapshot(res.state) : get().roundSnapshot;
     set({
       state: res.state,
       error: null,
       eventModal: eventModalFromGameState(res.state),
       playSelectMode: false,
+      roundSnapshot: nextSnapshot,
     });
   },
-  reset: () => {
+  resetRound: () => {
+    const { state, roundSnapshot } = get();
+    if (!canResetRound(state)) {
+      set({ error: 'Cannot reset cycle after directive phase or with no actions spent.' });
+      return;
+    }
+    if (!roundSnapshot) {
+      set({ error: 'No cycle snapshot available.' });
+      return;
+    }
     set({
-      state: createInitialState(),
+      state: applyRoundSnapshot(state, roundSnapshot),
       error: null,
       playSelectMode: false,
       eventModal: initialModal,
     });
   },
+  reset: () => {
+    const state = createInitialState();
+    set({
+      state,
+      error: null,
+      playSelectMode: false,
+      eventModal: initialModal,
+      roundSnapshot: captureRoundSnapshot(state),
+    });
+    if (getAudioManager().isUnlocked()) {
+      getAudioManager().exitGameOverMode();
+      void getAudioManager().restartGameplayBed();
+    }
+  },
 }));
+
+export function selectCanResetRound(state: GameState): boolean {
+  return canResetRound(state);
+}

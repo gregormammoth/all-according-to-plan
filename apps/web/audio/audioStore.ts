@@ -69,13 +69,14 @@ export const useAudioStore = create<AudioStoreState>((set, get) => ({
     set({ settings, hydrated: true });
   },
   unlock: async () => {
+    if (get().unlocked) return;
     const ok = await getAudioManager().unlock();
     if (!ok) return;
+    set({ unlocked: true, showUnlockHint: false });
     await getAudioManager().preloadCategories(['ui', 'event']);
     window.setTimeout(() => {
       void getAudioManager().preloadLoops();
     }, 2000);
-    set({ unlocked: true, showUnlockHint: false });
   },
   setMasterVolume: (v) => {
     const settings = { ...get().settings, masterVolume: clamp(v) };

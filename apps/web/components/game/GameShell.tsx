@@ -13,6 +13,7 @@ import { AdvisorPanel } from '@/components/game/AdvisorPanel';
 import { CastleScene } from '@/components/three/CastleScene';
 import { Atmosphere } from '@/components/ui/Atmosphere';
 import { useGameAudio } from '@/audio/useGameAudio';
+import { useGameOverAudio } from '@/audio/useGameOverAudio';
 import { useGameStore } from '@/state/gameStore';
 import { calculateStabilityIndex } from '@all-according-to-plan/shared';
 import { cn } from '@/lib/ui/cn';
@@ -20,6 +21,7 @@ import { statHud } from '@/lib/ui/variants';
 
 export function GameShell() {
   useGameAudio();
+  useGameOverAudio();
   const round = useGameStore((s) => s.state.round);
   const maxRounds = useGameStore((s) => s.state.maxRounds);
   const playerActionsUsed = useGameStore((s) => s.state.playerActionsUsed);

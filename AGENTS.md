@@ -404,5 +404,6 @@ Single quotes · minimal comments · thin Zustand · `cn()` for Tailwind · dire
 |------|------|
 | `.cursor/rules.md` | Full conventions, PR checklist, examples |
 | `.cursor/rules/*.mdc` | Auto-applied scoped rules |
+| `docs/agent-prompt-examples.md` | Task/plan/debug/review/subagent prompt templates |
 | `GAME_MECHANICS.md` | Player/engine rules |
 | `apps/web/DESIGN.md` | Visual system |

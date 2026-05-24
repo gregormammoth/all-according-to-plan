@@ -1,0 +1,37 @@
+---
+description: Deterministic game engine rules and state transitions
+globs: packages/game-engine/**/*
+alwaysApply: false
+---
+
+# Game engine
+
+Source of truth for gameplay. UI must mirror engine output.
+
+## Rules
+
+- All state changes via exported functions (`playCard`, `drawCard`, `gainResource`, `chooseEventChoice`, `rollPendingEvent`, `applyRevealedOutcome`, `continueAfterAppliedEvent`)
+- No `Math.random()` — use `rng.ts` with `gameSeed`
+- Clamp stats/resources via `@all-according-to-plan/shared` helpers
+- Card normalization: `normalizeCard` maps JSON archetypes to `asset` | `event`
+
+## When changing behavior
+
+1. Read `GAME_MECHANICS.md` and the implementing file
+2. Add/update Vitest tests with fixed `gameSeed` (required once test harness exists)
+3. Update `GAME_MECHANICS.md` if player-visible rules change
+4. Do not change UI in the same task unless user requested both
+
+## Result pattern
+
+Engine functions return `{ ok: true, state }` or `{ ok: false, error }`. Preserve this pattern.
+
+## Files
+
+| Concern | File |
+|---------|------|
+| Play card | `play.ts` |
+| Deck/draw | `deck.ts` |
+| Rounds/events | `round.ts` |
+| Initial/normalize | `state.ts` |
+| RNG | `rng.ts` |

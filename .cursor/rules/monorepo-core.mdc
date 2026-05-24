@@ -1,0 +1,41 @@
+---
+description: Monorepo boundaries, task scope, and verification for all work
+alwaysApply: true
+---
+
+# Monorepo core
+
+Read `AGENTS.md` before non-trivial changes.
+
+## Package boundaries
+
+- `packages/game-engine` — authoritative gameplay transitions; deterministic RNG only in `rng.ts`
+- `packages/shared` — types, `cards.json`, stat/resource helpers
+- `apps/web` — Next.js client; Zustand calls engine, never invents rules
+- `packages/ui` — legacy; do not add new features here
+
+Dependency direction: `web → game-engine → shared`. Never import `apps/web` from packages.
+
+## Scope discipline
+
+- One primary goal per session; state in-scope / out-of-scope files
+- Prefer ≤5 files for bug fixes; split large work across tasks
+- No drive-by refactors, no unrelated formatting sweeps
+- Do not commit or push unless the user explicitly asks
+
+## Verification
+
+Before claiming done:
+
+```bash
+npm run build
+npm run lint
+```
+
+After `apps/web`-only UI changes: `cd apps/web && npm run build`
+
+## Style
+
+- TypeScript strict, single quotes
+- Avoid new comments unless business logic is non-obvious
+- Minimal diff; match existing patterns in the touched file

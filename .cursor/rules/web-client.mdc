@@ -1,0 +1,41 @@
+---
+description: Next.js web client, Zustand, and game UI
+globs: apps/web/**/*
+alwaysApply: false
+---
+
+# Web client (`apps/web`)
+
+## State
+
+- `state/gameStore.ts` — calls `@all-according-to-plan/game-engine`, stores `GameState`
+- `state/motionStore.ts` — visual cues only (`play`, `draw`, `pendingPlayExit`, archive flash)
+- `state/roundSnapshot.ts` — cycle revert
+- Never duplicate gameplay rules in components
+
+## Card UX
+
+- Operational hand: `CardBar` + `HandDirectiveCard` — click card to play (no separate Play button)
+- Active programs: `PlayedCards` — **assets only**
+- Event history: `DirectiveArchive` in advisor panel — **events only**
+- Shared layout: `components/cards/DirectiveCard.tsx`
+
+## Motion & input
+
+- Animations must not block play; use `pendingPlayExit` for exit animations
+- Prefer transform/opacity; avoid Framer `layout` on hand strip
+- Respect `useMotionPrefs()` / reduced motion
+
+## Audio
+
+- Singleton: `audio/AudioManager.ts`
+- Unlock on first user gesture via `AudioProvider`
+- See `AUDIO.md` for bed/layers
+
+## Imports
+
+Use `@/` alias for web-internal paths. Workspace packages for engine/shared.
+
+## Aesthetic
+
+Authoritarian command UI per `DESIGN.md` — not fantasy TCG, not neon arcade.

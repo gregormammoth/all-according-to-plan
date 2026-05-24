@@ -1,0 +1,38 @@
+---
+description: AI agent safety, anti-hallucination, and git constraints
+alwaysApply: true
+---
+
+# AI safety
+
+## Do not invent
+
+- Game rules, phases, or card effects — verify in `game-engine` + `GAME_MECHANICS.md`
+- API endpoints in `apps/api` beyond what exists in controllers
+- File paths — search repo before importing
+
+## Do not do without explicit user request
+
+- `git commit`, `git push`, `gh pr create`
+- `git reset --hard`, force push to main/master
+- Add dependencies (npm packages)
+- Delete `public/audio` or `public/cards` assets
+- Rewrite architecture (state management, monorepo layout)
+
+## Parallel agent safety
+
+- Avoid editing the same file as another task
+- Engine changes before dependent UI changes
+- Do not rename symbols across packages in one pass
+
+## Claims require evidence
+
+- Run build before stating "done"
+- Cite file paths when describing behavior
+- If unsure, read source — ask one question instead of guessing
+
+## User code preferences
+
+- Single quotes
+- No gratuitous comments
+- Smallest correct diff

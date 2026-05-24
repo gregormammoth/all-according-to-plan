@@ -1,0 +1,22 @@
+---
+description: Shared types, card data, and pure helpers
+globs: packages/shared/**/*
+alwaysApply: false
+---
+
+# Shared package
+
+- Export types from `types.ts`; constants from `constants.ts`
+- Card data: `src/data/cards.json` — valid JSON, archetype + effects schema
+- Pure helpers: `utils.ts` (`canPay`, `describeCardEffectBullets`, clamps)
+- No React, no browser APIs, no engine imports
+
+## Card JSON
+
+- `type` in JSON is often archetype (`propaganda`, `economy`); engine infers `asset` | `event`
+- `effects` → normalized to `immediateEffects`
+- Document new fields in `GAME_MECHANICS.md`
+
+## Breaking changes
+
+Changing `GameState` shape requires coordinated updates in `game-engine` and `apps/web/state`.

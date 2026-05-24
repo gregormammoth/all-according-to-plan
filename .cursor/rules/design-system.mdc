@@ -1,0 +1,34 @@
+---
+description: Dystopian UI tokens, typography, and card visual system
+globs: apps/web/{app,components,lib}/**/*
+alwaysApply: false
+---
+
+# Design system
+
+Read `apps/web/DESIGN.md` for full tokens.
+
+## Tokens
+
+- Backgrounds: `state-void`, `state-charcoal`, `state-graphite`
+- Text: `board-ink`, `state-paper`, `state-paper-dim`
+- Accent: `state-amber` (authority), `state-gold` (elites/assets)
+- Factions: `faction-people`, `faction-security`, `faction-danger` (events)
+
+## Components
+
+- Panels: `components/ui/Panel.tsx` + `lib/ui/variants.ts`
+- Buttons: `components/ui/Button.tsx`
+- Cards: `lib/cards/styles.ts`, `directiveCardShell`, theme art in `public/cards/themes/`
+
+## Motion
+
+- Durations: `lib/motion/tokens.ts` (hover ~140ms, card ~280ms)
+- Variants: `lib/motion/variants.ts`
+- Hand cards: `game-card-framer` / `.directive-card-hand` in `globals.css`
+
+## Do not
+
+- Introduce bright saturated palettes or gacha-style frames
+- Animate width/height/margins on interactive cards
+- Add comments to styling code unless necessary

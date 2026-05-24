@@ -1,0 +1,33 @@
+---
+description: Package and directory ownership — who may change what
+alwaysApply: true
+---
+
+# Ownership
+
+Full matrix: `AGENTS.md` § Ownership matrix.
+
+## Quick rules
+
+| If task mentions… | Edit only |
+|-------------------|-----------|
+| Rules, dice, phases, events | `packages/game-engine/` + `GAME_MECHANICS.md` |
+| Card data, types, clamps | `packages/shared/` |
+| UI, animation, audio, stores | `apps/web/` |
+| Backend API | `apps/api/` (user must request) |
+
+## Never
+
+- Import `apps/web` from `packages/*`
+- Add features to `packages/ui/` (legacy)
+- Implement rules in `apps/mock-server` expecting web to use them
+
+## Cross-package order
+
+`shared` → `game-engine` → `apps/web`
+
+Stop after each step; run build for touched workspaces.
+
+## Events
+
+Authoritative: `packages/game-engine/src/round.ts` (`MOCK_EVENTS`).

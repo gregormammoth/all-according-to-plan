@@ -1,38 +1,43 @@
 ---
-description: AI agent safety, anti-hallucination, and git constraints
+description: Forbidden actions, migration safety, hallucination guards, git
 alwaysApply: true
 ---
 
 # AI safety
 
-## Do not invent
+## Source of truth
 
-- Game rules, phases, or card effects — verify in `game-engine` + `GAME_MECHANICS.md`
-- API endpoints in `apps/api` beyond what exists in controllers
-- File paths — search repo before importing
+Engine source > `GAME_MECHANICS.md` > README > AGENTS.md (process only).
 
-## Do not do without explicit user request
+## Forbidden
 
-- `git commit`, `git push`, `gh pr create`
-- `git reset --hard`, force push to main/master
-- Add dependencies (npm packages)
-- Delete `public/audio` or `public/cards` assets
-- Rewrite architecture (state management, monorepo layout)
+See `AGENTS.md` § Forbidden actions. Includes: git write, new deps, RNG outside `rng.ts`, UI rule duplication, bulk asset delete, cross-package renames.
 
-## Parallel agent safety
+## Migration
 
-- Avoid editing the same file as another task
-- Engine changes before dependent UI changes
-- Do not rename symbols across packages in one pass
+- `GameState` / types: shared → engine → web → docs (same task)
+- `cards.json`: no id renames; JSON `type` is archetype
+- `rng.ts` / reshuffle: tests or user waiver + repro
 
-## Claims require evidence
+## Hallucination — verify before claiming
 
-- Run build before stating "done"
-- Cite file paths when describing behavior
-- If unsure, read source — ask one question instead of guessing
+| Topic | File |
+|-------|------|
+| Events | `game-engine/src/round.ts` |
+| Elections | `game-engine/src/round.ts` |
+| Card asset/event | `game-engine/src/state.ts` |
+| Audio paths | `apps/web/audio/soundManifest.ts` |
 
-## User code preferences
+Say **unverified** if source not read.
 
-- Single quotes
-- No gratuitous comments
-- Smallest correct diff
+## Uncertainty
+
+Search engine → read mechanics doc → ask **one** question. Do not guess outcomes.
+
+## Evidence
+
+Never claim done without build. Cite file:line for behavior claims.
+
+## Parallel agents
+
+One writer per file. `shared` → `engine` → `web`.

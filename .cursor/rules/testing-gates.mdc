@@ -1,0 +1,34 @@
+---
+description: Testing and verification gates before claiming done
+alwaysApply: true
+---
+
+# Testing gates
+
+## Always run
+
+```bash
+npm run build -w @all-according-to-plan/shared -w @all-according-to-plan/game-engine
+```
+
+Web touched: `cd apps/web && npm run build && npm run lint`
+
+## Engine logic change
+
+Until Vitest exists: **Gate D** manual checklist in agent report (min 3 repro steps, cite state fields).
+
+When Vitest exists: `npm test -w @all-according-to-plan/game-engine` — **required**, no waiver.
+
+## cards.json only
+
+Build workspaces that depend on shared; manual UI spot-check steps.
+
+## Prohibited claims
+
+- "Tests pass" without command output
+- "Comprehensive coverage" for unrelated UI diff
+
+## Test design
+
+- Fixed `gameSeed` from `createInitialState`
+- Assert numeric state fields, not snapshots of entire UI

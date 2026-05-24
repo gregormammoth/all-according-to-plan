@@ -1,367 +1,327 @@
 # Cursor rules — All According to Plan
 
-Master conventions for AI-assisted development. Cursor also loads scoped rules from `.cursor/rules/*.mdc`.
-
-## Project profile
-
-| Field | Value |
-|-------|--------|
-| Product | Dystopian political strategy card game (browser) |
-| Users | Solo players; internal designers/engineers |
-| Team | Small / solo |
-| Frontend | Next.js 15, React 19, Zustand, Tailwind, Framer Motion, Three.js |
-| Backend | NestJS stub (`apps/api`), not authoritative for gameplay |
-| Data | In-memory client state; `cards.json` in `packages/shared` |
-| Infra | None in-repo (static export / local dev) |
-| Goals | Determinism, maintainability, safe AI iteration |
-| Constraints | Engine/UI split, no randomness outside engine RNG |
+**Companion to `AGENTS.md` (v1.1).** Cursor loads `.cursor/rules/*.mdc` for scoped enforcement.
 
 ---
 
-## 1. Engineering conventions
+## Critique log (why v1.1 changed)
 
-### TypeScript
-
-- Strict mode; prefer explicit return types on exported engine functions
-- Use workspace imports: `@all-according-to-plan/shared`, `@all-according-to-plan/game-engine`
-- Single quotes for strings
-- No `enum` unless already established in file — prefer string unions from `shared`
-- Avoid `as` casts; fix types at source
-
-### Formatting
-
-- Prettier via `npm run format` (root)
-- Do not fight ESLint; fix warnings in touched files when practical
-
-### Naming
-
-| Kind | Pattern | Example |
-|------|---------|---------|
-| React components | PascalCase | `DirectiveCard.tsx` |
-| Hooks | `use` prefix | `useGameAudio.ts` |
-| Zustand stores | `useXStore` | `useGameStore` |
-| Engine functions | verb + noun | `playCard`, `continueAfterAppliedEvent` |
-| Types | PascalCase | `GameState`, `Card` |
-| Files | kebab or camel matching folder | `roundSnapshot.ts` |
-
-### Imports
-
-```typescript
-import type { Card } from '@all-according-to-plan/shared';
-import { playCard } from '@all-according-to-plan/game-engine';
-```
-
-Order: external → workspace → `@/` alias (web only) → relative
-
-### Comments
-
-- Default: **no comments** in new code
-- Allowed: non-obvious business rules, engine invariants, `@deprecated`
+| Issue in v1.0 | Risk | v1.1 fix |
+|---------------|------|----------|
+| Docs could override engine | Agents implement README fiction | Source-of-truth hierarchy |
+| “≤5 files” soft guidance | Unbounded diffs | Hard caps + escalation |
+| “Tests when exist” vague | Skipped verification | Testing gates table + Gate D |
+| `playSelectMode` as rule | Stale negative knowledge | Moved to anti-pattern only |
+| “layout unless justified” | Ambiguous | Refactor constraints: no new layout on hand |
+| “Ask if adding deps” | Blocks autonomy inconsistently | Forbidden without approval |
+| mock-server implied events | Wrong file edited | Explicit: events in `round.ts` |
+| No migration steps | Broken builds mid-refactor | Migration safety section |
+| No handoff format | Context loss | Context management + handoff template |
+| PR checklist only in AGENTS | Duplication | PR heuristics in both; AGENTS = summary |
 
 ---
 
-## 2. Architecture constraints
+## 1. Forbidden actions (canonical list)
 
-### Layered authority
+See `AGENTS.md` § Forbidden actions. Agents must treat any item there as **hard stop** unless the user’s current message explicitly approves.
 
-```
-┌─────────────────────────────────────┐
-│  apps/web (presentation + input)   │
-│  Zustand → calls engine → set state │
-└─────────────────┬───────────────────┘
-                  │
-┌─────────────────▼───────────────────┐
-│  packages/game-engine (rules)       │
-│  pure transitions, deterministic RNG│
-└─────────────────┬───────────────────┘
-                  │
-┌─────────────────▼───────────────────┐
-│  packages/shared (types + data)     │
-└─────────────────────────────────────┘
-```
+**Compact deny-list:**
 
-### State ownership
-
-| State | Owner |
-|-------|--------|
-| `GameState` | Engine produces; web stores copy in `gameStore` |
-| `playSelectMode` | **Removed** — do not reintroduce arm-to-play without spec |
-| Motion cues | `motionStore` (visual only, never gameplay) |
-| Audio settings | `audioStore` + `AudioManager` singleton |
-| Round revert snapshot | `roundSnapshot.ts` |
-
-### Determinism
-
-- RNG: `packages/game-engine/src/rng.ts` only
-- Reshuffle seed: documented in `README.md` / `GAME_MECHANICS.md`
-- UI must not roll dice or shuffle decks
-
-### Card data pipeline
-
-1. Author edits `packages/shared/src/data/cards.json`
-2. `normalizeCard` in `game-engine/src/state.ts` maps archetypes → `asset` | `event`
-3. UI reads `Card` from library Map — never parse raw JSON in components
-
-### UI architecture (`apps/web`)
-
-| Area | Location |
-|------|----------|
-| Game layout | `components/game/GameShell.tsx` |
-| Operational hand | `components/game/CardBar.tsx` + `components/cards/HandDirectiveCard.tsx` |
-| Active programs | `components/game/PlayedCards.tsx` |
-| Event archive | `components/cards/DirectiveArchive.tsx` in advisor panel |
-| Motion tokens | `lib/motion/` |
-| Design tokens | `tailwind.config.ts`, `lib/ui/variants.ts` |
-| Card system | `components/cards/`, `lib/cards/` |
-
-### Forbidden patterns
-
-- Game rules in `useEffect` without engine call
-- Duplicating `canPay` / stat clamp logic in web (use `shared` helpers)
-- Framer `layout` on hand cards or panels that cause layout shift
-- Global `isAnimating` flags that block card play
-- Importing `three` outside `components/three/`
+- Git write operations without request
+- `Math.random()` outside `rng.ts`
+- Direct `GameState` mutation in UI
+- New dependencies
+- Bulk asset deletion
+- Cross-package renames
+- Repo-wide format/lint sweeps
+- Implementing unrequested features
 
 ---
 
-## 3. AI agent safety rules
+## 2. Scope limitation rules
 
-### Must do
-
-1. Read `AGENTS.md` + relevant mechanic/design docs before coding
-2. State scope and out-of-scope in the first response
-3. Run `npm run build` (or package build) before claiming complete
-4. Use existing components (`DirectiveCard`, `Panel`, `Button`) before creating parallels
-5. Preserve deterministic engine behavior
-
-### Must not
-
-1. Invent card effects, event steps, or phases not in docs/source
-2. Rewrite architecture (Redux, tRPC game state, etc.) without explicit request
-3. Remove animations entirely when asked to fix bugs — decouple from input instead
-4. Add `Math.random()` to gameplay
-5. Commit/push/PR unless user asks
-6. Touch unrelated files “while here”
-7. Generate placeholder lorem for user-visible copy — use institutional tone
-
-### Uncertainty protocol
-
-If behavior is ambiguous:
-
-1. Search `game-engine` for the function name
-2. Read `GAME_MECHANICS.md`
-3. Ask one focused question — do not guess rule outcomes
-
-### Hallucination guards
-
-| Claim | Verify in |
-|-------|-----------|
-| Card is asset vs event | `inferCardType` / normalized `card.type` |
-| Action count | `maxPlayerActionsPerRound`, `playerActionsUsed` |
-| Election rounds | `round % 4 === 0 && round < 25` |
-| Audio file path | `audio/soundManifest.ts`, `public/audio/` |
-
----
-
-## 4. Task execution guidelines
-
-### Task sizing
-
-| Size | Files | Duration target |
-|------|-------|-----------------|
-| XS | 1–2 | <30 min agent time |
-| S | 3–5 | Single package |
-| M | 6–10 | Needs plan |
-| L | 10+ | Split into multiple PRs / agent runs |
-
-### Branch discipline
-
-- One logical change per agent session
-- Do not mix engine rule change + unrelated UI redesign
-
-### Definition of done
-
-1. Code compiles (`npm run build`)
-2. Lint clean on touched packages
-3. Manual test steps listed
-4. Docs updated if behavior or data model changed
-5. Tests added/updated if `game-engine` behavior changed (once Vitest exists)
-
-### Commit messages (when user asks)
-
-- Imperative mood, 1–2 sentences, explain **why**
-- Example: `Keep play mode armed while player actions remain to fix card pacing.`
-
----
-
-## 5. Repo structure recommendations
-
-### Current (keep)
-
-- Monorepo with `packages/*` + `apps/*`
-- Engine and shared as compiled TS libraries
-
-### Recommended additions
-
-```
-all-according-to-plan/
-├── .cursor/rules/           # scoped .mdc rules (exists)
-├── AGENTS.md
-├── docs/                    # optional: planning ADRs later
-├── packages/game-engine/
-│   └── src/__tests__/       # Vitest (*.test.ts)
-├── vitest.config.ts         # root or per-package
-└── .github/workflows/ci.yml # build + lint + test
-```
-
-### Do not add (without spec)
-
-- `src/` at repo root
-- Second web app
-- GraphQL layer for local-only game
-
----
-
-## 6. Linting & testing stack
-
-### Current
-
-| Tool | Scope |
-|------|--------|
-| ESLint 9 flat | Root (excludes `apps/web`) |
-| `next lint` | `apps/web` |
-| Prettier | Root `npm run format` |
-| TypeScript | per-package `tsconfig.json` |
-
-### Recommended
-
-| Tool | Purpose |
-|------|---------|
-| **Vitest** | `game-engine`, `shared` unit tests |
-| **@testing-library/react** | Optional web component tests |
-| **Playwright** | Smoke: load game, play card, event modal |
-| **CI** | `build` + `lint` + `test` on PR |
-
-### Test-first for engine
-
-When changing rules:
-
-1. Write failing test with fixed seed
-2. Implement change
-3. Update `GAME_MECHANICS.md`
-
----
-
-## 7. Code review checklist
-
-### Gameplay / engine
-
-- [ ] Transition function returns `{ ok, state }` or established pattern
-- [ ] Stats/resources clamped via shared helpers
-- [ ] Phase transitions documented
-- [ ] No new nondeterminism
-- [ ] `cards.json` valid JSON; archetypes normalize correctly
-
-### Web / UX
-
-- [ ] Engine called from `gameStore` actions only
-- [ ] Directives clickable without separate “Play” arm (unless spec changes)
-- [ ] Assets vs events: correct panel (active programs vs archive)
-- [ ] Animations use transform/opacity; interactions not blocked
-- [ ] `prefers-reduced-motion` respected via `MotionProvider`
-- [ ] DESIGN.md aesthetic: no neon / fantasy TCG
-
-### General
-
-- [ ] No secrets, API keys, or `.env` committed
-- [ ] Dependencies justified
-- [ ] Build passes
-
----
-
-## 8. Planning workflow instructions
-
-### When to plan
-
-- Multi-package features
-- New persistence or multiplayer
-- Card format migration
-- Audio system rewrites
-- >10 files or ambiguous requirements
-
-### Plan template
+### Declaration template
 
 ```markdown
-## Goal
-## Current behavior (cite files)
-## Proposed behavior
-## Files in scope
-## Files explicitly out of scope
-## Risks (determinism, UX, perf)
-## Test plan
-## Rollback
+Goal:
+In scope:
+Out of scope:
+Owner package:
+Tier: XS | S | M | L
+Success criteria:
 ```
 
-### When to skip planning
+### Caps
 
-- Single-component style fix
-- Copy tweak
-- Typo in docs
-- One-function engine bug with obvious test
+| Tier | Files | Packages | Plan |
+|------|-------|----------|------|
+| XS | ≤2 | 1 | No |
+| S | ≤5 | 1 | No |
+| M | ≤10 | ≤2 | Yes |
+| L | >10 or >2 pkg | 2+ | Yes + approval |
 
-### Cursor Plan mode
+**Stop rule:** If approaching cap mid-task, finish current file only, report, ask to continue.
 
-Use Plan mode for architectural tradeoffs. Exit Plan with explicit file list before Agent implements.
+### Default out-of-scope
+
+`packages/ui/**`, `apps/api/**`, `apps/mock-server/**`, unrelated packages, lockfile (unless deps task).
 
 ---
 
-## 9. Design & content constraints
+## 3. Migration safety rules
 
-- Tone: bureaucratic, cold, institutional (see `DESIGN.md`)
-- Cards: dossier / directive, not TCG rarity frames
-- Colors: `state-*`, `faction-*`, `board-ink` tokens only
-- Typography: Barlow Condensed (display), IBM Plex Sans (body)
+### Type / state shape (`GameState`, `Card`, `Resources`)
+
+1. `packages/shared/src/types.ts`
+2. `game-engine` compile
+3. `apps/web` compile
+4. `GAME_MECHANICS.md`
+5. Manual repro checklist
+
+Never change types in `apps/web` alone.
+
+### `cards.json`
+
+- Validate JSON before commit
+- Do not rename `id` without explicit migration task
+- Archetype in JSON ≠ engine `card.type` — verify `normalizeCard`
+
+### Determinism migrations
+
+Changes to `rng.ts`, reshuffle, or dice thresholds require:
+
+- Tests with fixed `gameSeed`, **or**
+- Written user waiver + repro steps
+
+### Store migrations
+
+- `gameStore`: engine calls only in actions
+- `motionStore`: never gates gameplay
+- `audioStore`: never stores rules
 
 ---
 
-## 10. Example prompts
+## 4. Testing gates
 
-### Good prompts
+### Current state
+
+No Vitest in repo. **Gate D** (manual engine checklist) is mandatory for engine changes.
+
+### When harness exists
+
+| Path pattern | Gate |
+|--------------|------|
+| `packages/game-engine/**` (logic) | `npm test -w @all-according-to-plan/game-engine` required |
+| `packages/shared/**` (helpers) | test if logic added |
+| `apps/web/**` (UI) | build + lint; E2E optional |
+
+### Test quality
+
+- Use `gameSeed: 1337` (or documented seed) from `createInitialState`
+- Assert exact numeric fields after transitions
+- No testing React for engine rules
+
+### Prohibited claims
+
+- “All tests pass” without running command
+- “Added comprehensive tests” for one-line UI tweak
+
+---
+
+## 5. Refactoring constraints
+
+1. **One concern per task** — no refactor + feature
+2. **Max 3 exported renames** per task across repo
+3. **No engine → web** logic migration
+4. **No deletion** of `HandDirectiveCard` / `DirectiveCard` system without replacement plan
+5. **Motion:** transform/opacity only on `CardBar` strip
+6. **Extract, don’t fork** — extend `DirectiveCard` variants before new card components
+
+### Safe refactors (examples)
+
+- Split long function in `round.ts` (same exports)
+- Add selector to reduce Zustand re-renders
+- Move inline styles to `variants.ts`
+
+### Unsafe refactors (examples)
+
+- “Unify” `packages/ui` and `apps/web` in one PR
+- Global `GameState` rename
+- Replace Zustand with Context for “simplicity”
+
+---
+
+## 6. PR review heuristics
+
+### Severity guide
+
+| Severity | Examples |
+|----------|----------|
+| **Blocker** | Nondeterminism; UI mutates rules; engine change w/o docs; build fails |
+| **Major** | Wrong panel for asset/event; blocks input; new dep |
+| **Minor** | Naming, spacing, copy tone |
+| **Nit** | Optional style not in DESIGN.md |
+
+### Review script (5 minutes)
+
+1. Read PR goal vs diff stats (files, packages)
+2. If `game-engine` touched → open `GAME_MECHANICS.md` diff
+3. If `gameStore` touched → trace one action to engine function
+4. If `cards.json` touched → check id/archetype only
+5. Confirm CI commands (build/lint/test) listed in PR body
+
+### Agent-as-reviewer output format
+
+```markdown
+## Verdict: Approve | Request changes
+## Blockers
+## Determinism check
+## Scope check
+## Suggested manual QA
+```
+
+---
+
+## 7. Context management
+
+### Token discipline
+
+- Grep `cards.json` for single id, don’t read 500 lines
+- Read function bodies, not whole `round.ts`, unless editing events
+- One design doc per UI task
+
+### Multi-step tasks
+
+Split into sequenced agent runs:
+
+1. Engine + tests + mechanics doc
+2. Web store wiring
+3. UI polish
+
+Never start step 2 until step 1 builds.
+
+### Handoff block (required at end of M/L tasks)
+
+```text
+## Handoff
+Done:
+Not done:
+Files:
+Commands:
+Questions:
+```
+
+---
+
+## 8. Memory persistence recommendations
+
+| Persist | Do not persist |
+|---------|----------------|
+| Rules in `GAME_MECHANICS.md` | Ad-hoc chat agreements |
+| Process in `AGENTS.md` | “Temporary” hacks in comments |
+| ADRs in `docs/decisions/` | Card balance in agent memory |
+| Backlog in issues/`docs/backlog.md` | File paths from memory |
+
+**Create ADR when:** RNG, networking, save/load, or `GameState` shape changes.
+
+**Refresh AGENTS.md** when: new package, new app, or ownership shift — not every feature.
+
+---
+
+## 9. Engineering conventions
+
+(TypeScript, naming, imports — unchanged from v1.0; see `AGENTS.md` coding preferences.)
+
+- Workspace imports: `@all-according-to-plan/*`
+- Web alias: `@/` only inside `apps/web`
+- Single quotes; no gratuitous comments
+
+---
+
+## 10. Architecture constraints
+
+### Ownership (summary)
+
+| Package | Role |
+|---------|------|
+| `game-engine` | All transitions |
+| `shared` | Types + data |
+| `apps/web` | Presentation |
+| `packages/ui` | Legacy — no growth |
+
+### Events source
+
+Round events: `packages/game-engine/src/round.ts` (`MOCK_EVENTS`). Not `mock-server` for client gameplay.
+
+### Card UX contract
+
+- Click card → `gameStore.play` → `playCard`
+- Assets → `PlayedCards` (active programs)
+- Events → `DirectiveArchive` (advisor panel)
+- No arm-to-play toggle unless user re-specifies
+
+---
+
+## 11. Hallucination guards (expanded)
+
+| If agent claims… | Verify |
+|------------------|--------|
+| “Election every 4 rounds” | `round.ts`, `round % 4 === 0 && round < 25` |
+| “3 actions then event” | `play.ts` / `beginEventModal` |
+| “Card stays in hand” | `play.ts` hand removal |
+| “Audio autoplays” | `AudioProvider`, unlock flow |
+| “API saves game” | `apps/api` — likely false |
+| Export exists | `package.json` exports + `index.ts` |
+
+**Rule:** If verification file not opened in session, say “unverified” not “confirmed”.
+
+---
+
+## 12. Workflows that create tech debt (avoid)
+
+| Workflow | Debt | Alternative |
+|----------|------|-------------|
+| UI copies engine formulas | Drift | Import from `shared` / call engine |
+| New card component per screen | Duplication | `DirectiveCard` variants |
+| Skipping mechanics doc | Wrong player expectations | Same-PR doc update |
+| Giant agent PR | Unreviewable | Tier S splits |
+| Storing rules in AGENTS.md | Double source | `GAME_MECHANICS.md` |
+| `packages/ui` new exports | Two UIs | `apps/web` only |
+
+---
+
+## 13. Planning workflow
+
+**Plan required:** M/L tier, `GameState` change, RNG, new package, audio rewrite.
+
+**Plan template:** Goal → Current (file cites) → Proposed → In/Out scope → Risks → Test plan → Rollback.
+
+**Skip plan:** XS tier, copy-only, single CSS fix.
+
+---
+
+## 14. Example prompts
+
+### Good
 
 ```
-Add Vitest to game-engine. One test: playing an event card moves it to discard 
-and increments playerActionsUsed. Do not touch apps/web.
+Tier S. game-engine only. Fix draw when deck empty: add test with seed 1337.
+In scope: deck.ts, deck.test.ts. Out of scope: apps/web.
 ```
 
-```
-DirectiveCard: increase artwork aspect ratio on hand variant only. 
-Use transform hover. Verify apps/web build.
-```
+### Bad
 
 ```
-Document election score formula in GAME_MECHANICS.md to match round.ts. 
-No code changes unless doc differs from implementation.
-```
-
-### Bad prompts
-
-```
-Make the game funnier and more colorful.
-```
-
-```
-Rewrite everything to use MobX and add blockchain achievements.
-```
-
-```
-Fix all bugs and improve architecture across the repo.
+Align codebase with best practices and add tests everywhere.
 ```
 
 ---
 
 ## Related files
 
-- `AGENTS.md` — agent entry point
-- `.cursor/rules/*.mdc` — auto-applied scoped rules
-- `GAME_MECHANICS.md` — rules source of truth
-- `apps/web/DESIGN.md` — UI system
+- `AGENTS.md` — entry point, gates, forbidden actions
+- `.cursor/rules/monorepo-core.mdc` — always apply
+- `.cursor/rules/ai-safety.mdc` — always apply
+- `.cursor/rules/ownership.mdc` — always apply
+- `.cursor/rules/game-engine.mdc` — engine glob
+- `.cursor/rules/web-client.mdc` — web glob

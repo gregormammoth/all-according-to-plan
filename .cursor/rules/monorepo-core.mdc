@@ -1,41 +1,48 @@
 ---
-description: Monorepo boundaries, task scope, and verification for all work
+description: Scope caps, verification gates, forbidden actions summary
 alwaysApply: true
 ---
 
 # Monorepo core
 
-Read `AGENTS.md` before non-trivial changes.
+Read `AGENTS.md` first.
 
-## Package boundaries
+## Scope (hard)
 
-- `packages/game-engine` — authoritative gameplay transitions; deterministic RNG only in `rng.ts`
-- `packages/shared` — types, `cards.json`, stat/resource helpers
-- `apps/web` — Next.js client; Zustand calls engine, never invents rules
-- `packages/ui` — legacy; do not add new features here
+Declare Goal / In scope / Out of scope / Owner / Tier before edits.
 
-Dependency direction: `web → game-engine → shared`. Never import `apps/web` from packages.
+| Tier | Max files | Packages |
+|------|-----------|----------|
+| XS | 2 | 1 |
+| S | 5 | 1 |
+| M | 10 | ≤2 + plan |
+| L | >10 | plan + user OK |
 
-## Scope discipline
+Exceeded → stop, report, ask to split.
 
-- One primary goal per session; state in-scope / out-of-scope files
-- Prefer ≤5 files for bug fixes; split large work across tasks
-- No drive-by refactors, no unrelated formatting sweeps
-- Do not commit or push unless the user explicitly asks
+Default **out of scope:** `packages/ui/**`, `apps/api/**`, `apps/mock-server/**`.
 
-## Verification
-
-Before claiming done:
+## Verification gates (required)
 
 ```bash
-npm run build
-npm run lint
+npm run build -w @all-according-to-plan/shared -w @all-according-to-plan/game-engine
 ```
 
-After `apps/web`-only UI changes: `cd apps/web && npm run build`
+If `apps/web` touched: `cd apps/web && npm run build && npm run lint`
+
+Full monorepo if workspace deps changed: `npm run build && npm run lint`
+
+Engine logic change without tests: include Gate D manual checklist in report.
+
+## Forbidden (no explicit user approval)
+
+- git commit/push/PR
+- New npm dependencies
+- `Math.random()` outside `game-engine/src/rng.ts`
+- Direct `GameState` mutation in UI
+- Repo-wide format/lint
+- Deleting `public/audio` or `public/cards`
 
 ## Style
 
-- TypeScript strict, single quotes
-- Avoid new comments unless business logic is non-obvious
-- Minimal diff; match existing patterns in the touched file
+Single quotes · minimal comments · smallest diff

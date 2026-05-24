@@ -1,41 +1,50 @@
 ---
-description: Next.js web client, Zustand, and game UI
+description: Next.js client — stores, UI, motion; no gameplay authority
 globs: apps/web/**/*
 alwaysApply: false
 ---
 
-# Web client (`apps/web`)
+# Web client
 
-## State
+Owner: **presentation**. Rules live in `game-engine`.
 
-- `state/gameStore.ts` — calls `@all-according-to-plan/game-engine`, stores `GameState`
-- `state/motionStore.ts` — visual cues only (`play`, `draw`, `pendingPlayExit`, archive flash)
-- `state/roundSnapshot.ts` — cycle revert
-- Never duplicate gameplay rules in components
+## Stores
 
-## Card UX
+| Store | May hold |
+|-------|----------|
+| `gameStore` | `GameState` copy; calls engine in actions |
+| `motionStore` | Visual cues only (`play`, `draw`, `pendingPlayExit`) |
+| `audioStore` | Settings + unlock |
 
-- Operational hand: `CardBar` + `HandDirectiveCard` — click card to play (no separate Play button)
-- Active programs: `PlayedCards` — **assets only**
-- Event history: `DirectiveArchive` in advisor panel — **events only**
-- Shared layout: `components/cards/DirectiveCard.tsx`
+Forbidden: duplicate gameplay flags; rule logic in `useEffect`.
 
-## Motion & input
+## Card UX (contract)
 
-- Animations must not block play; use `pendingPlayExit` for exit animations
-- Prefer transform/opacity; avoid Framer `layout` on hand strip
-- Respect `useMotionPrefs()` / reduced motion
+- `CardBar` + `HandDirectiveCard`: click plays card
+- `PlayedCards`: active **assets** only
+- `DirectiveArchive`: played **events** only
+- Use `DirectiveCard` variants — do not fork new card shells
 
-## Audio
+## Motion
 
-- Singleton: `audio/AudioManager.ts`
-- Unlock on first user gesture via `AudioProvider`
-- See `AUDIO.md` for bed/layers
+- Do not block input for animations
+- No Framer `layout` on hand strip
+- `transform` / `opacity` only
 
-## Imports
+## Engine boundary
 
-Use `@/` alias for web-internal paths. Workspace packages for engine/shared.
+```typescript
+const res = playCard(library, get().state, cardId);
+if (!res.ok) { set({ error: res.error }); return; }
+set({ state: res.state, ... });
+```
 
-## Aesthetic
+## Verification
 
-Authoritarian command UI per `DESIGN.md` — not fantasy TCG, not neon arcade.
+`cd apps/web && npm run build && npm run lint`
+
+## Forbidden
+
+- `Math.random()` for game outcomes
+- Parsing `cards.json` in components (use library Map)
+- New features in `packages/ui`

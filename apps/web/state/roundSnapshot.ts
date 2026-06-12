@@ -1,4 +1,11 @@
-import type { GameState, GroupStats, PlayerStats, Resources, ScheduledEffect } from '@all-according-to-plan/shared';
+import type {
+  ActiveCrisis,
+  GameState,
+  GroupStats,
+  PlayerStats,
+  Resources,
+  ScheduledEffect,
+} from '@all-according-to-plan/shared';
 
 export type RoundSnapshot = {
   hand: string[];
@@ -6,11 +13,14 @@ export type RoundSnapshot = {
   deckDiscard: string[];
   resources: Resources;
   stats: PlayerStats;
+  legitimacy: number;
+  control: number;
   playerActionsUsed: number;
   activeAssets: string[];
   playedCardIds: string[];
   cardsPlayedThisRound: string[];
   scheduledEffects: ScheduledEffect[];
+  activeCrises: ActiveCrisis[];
   reshuffleCount: number;
   lastDeckAction: GameState['lastDeckAction'];
 };
@@ -30,10 +40,13 @@ export function captureRoundSnapshot(state: GameState): RoundSnapshot {
       elites: cloneGroup(state.stats.elites),
       security: cloneGroup(state.stats.security),
     },
+    legitimacy: state.legitimacy,
+    control: state.control,
     playerActionsUsed: state.playerActionsUsed,
     activeAssets: [...state.activeAssets],
     playedCardIds: [...state.playedCardIds],
     cardsPlayedThisRound: [...state.cardsPlayedThisRound],
+    activeCrises: state.activeCrises.map((c) => ({ ...c })),
     scheduledEffects: state.scheduledEffects.map((s) => ({
       firesAtRound: s.firesAtRound,
       effects: {
@@ -41,6 +54,8 @@ export function captureRoundSnapshot(state: GameState): RoundSnapshot {
         elites: { ...s.effects.elites },
         security: { ...s.effects.security },
       },
+      legitimacyDelta: s.legitimacyDelta,
+      controlDelta: s.controlDelta,
     })),
     reshuffleCount: state.reshuffleCount,
     lastDeckAction: state.lastDeckAction,
@@ -60,10 +75,13 @@ export function applyRoundSnapshot(state: GameState, snap: RoundSnapshot): GameS
       elites: cloneGroup(snap.stats.elites),
       security: cloneGroup(snap.stats.security),
     },
+    legitimacy: snap.legitimacy,
+    control: snap.control,
     playerActionsUsed: snap.playerActionsUsed,
     activeAssets: [...snap.activeAssets],
     playedCardIds: [...snap.playedCardIds],
     cardsPlayedThisRound: [...snap.cardsPlayedThisRound],
+    activeCrises: snap.activeCrises.map((c) => ({ ...c })),
     scheduledEffects: snap.scheduledEffects.map((s) => ({
       firesAtRound: s.firesAtRound,
       effects: {
@@ -71,6 +89,8 @@ export function applyRoundSnapshot(state: GameState, snap: RoundSnapshot): GameS
         elites: { ...s.effects.elites },
         security: { ...s.effects.security },
       },
+      legitimacyDelta: s.legitimacyDelta,
+      controlDelta: s.controlDelta,
     })),
     reshuffleCount: snap.reshuffleCount,
     lastDeckAction: snap.lastDeckAction,
@@ -81,6 +101,7 @@ export function applyRoundSnapshot(state: GameState, snap: RoundSnapshot): GameS
     lastOutcomeSummary: null,
     statChangesPreview: null,
     resourceChangesPreview: null,
+    regimeChangesPreview: null,
   };
 }
 

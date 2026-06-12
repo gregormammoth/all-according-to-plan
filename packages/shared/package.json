@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && mkdir -p dist/data && cp src/data/cards.json dist/data/cards.json",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/data && cp src/data/cards.json dist/data/cards.json && cp src/data/crises.json dist/data/crises.json",
     "dev": "tsc -p tsconfig.json --watch",
     "lint": "eslint src --max-warnings 0"
   },

@@ -1,12 +1,15 @@
 import {
   cardsDocument,
+  defaultRegimeTracks,
   MAX_HAND_CARDS,
   OPENING_HAND_CARDS,
   PLAYER_ACTIONS_PER_ROUND,
-  type CardEffects,
   type Card,
+  type CardEffects,
+  type EffectBlock,
   type GameState,
   type PlayerStats,
+  type RegimeDelta,
   type Resources,
 } from '@all-according-to-plan/shared';
 import { buildCardLibrary, type CardLibrary } from './library';
@@ -35,17 +38,39 @@ function inferCardType(archetype: string): 'asset' | 'event' {
     : 'event';
 }
 
-function toArrayEffects(value: unknown): CardEffects[] {
+function toArrayEffectBlocks(value: unknown): EffectBlock[] {
   if (!value) return [];
-  if (Array.isArray(value)) return value as CardEffects[];
-  return [value as CardEffects];
+  const list = Array.isArray(value) ? value : [value];
+  return list.map((item) => normalizeEffectBlock(item));
+}
+
+function normalizeEffectBlock(source: any): EffectBlock {
+  const { legitimacyDelta, controlDelta, ...rest } = source ?? {};
+  const effects: CardEffects = {
+    people: rest.people ?? { satisfaction: 0, loyalty: 0, fear: 0 },
+    elites: rest.elites ?? { satisfaction: 0, loyalty: 0, fear: 0 },
+    security: rest.security ?? { satisfaction: 0, loyalty: 0, fear: 0 },
+  };
+  const block: EffectBlock = { ...effects };
+  if (legitimacyDelta !== undefined) block.legitimacyDelta = legitimacyDelta;
+  if (controlDelta !== undefined) block.controlDelta = controlDelta;
+  return block;
+}
+
+function regimeFromSource(source: any): RegimeDelta {
+  const delta: RegimeDelta = {};
+  if (source.legitimacyDelta !== undefined) delta.legitimacyDelta = source.legitimacyDelta;
+  if (source.controlDelta !== undefined) delta.controlDelta = source.controlDelta;
+  return delta;
 }
 
 function normalizeCard(source: any): Card {
   const archetype = typeof source.type === 'string' ? source.type : 'event';
-  const immediate = source.immediateEffects ?? source.effects;
+  const immediateRaw = source.immediateEffects ?? source.effects;
+  const immediate = immediateRaw ? normalizeEffectBlock(immediateRaw) : undefined;
   const passive = source.passiveEffects ?? [];
   const delayed = source.delayedEffects ?? [];
+  const rootRegime = regimeFromSource(source);
   return {
     id: source.id,
     name: source.name,
@@ -54,9 +79,11 @@ function normalizeCard(source: any): Card {
     type: source.type === 'asset' || source.type === 'event' ? source.type : inferCardType(archetype),
     cost: source.cost ?? {},
     immediateEffects: immediate,
-    passiveEffects: toArrayEffects(passive),
-    delayedEffects: toArrayEffects(delayed),
+    passiveEffects: toArrayEffectBlocks(passive),
+    delayedEffects: toArrayEffectBlocks(delayed),
     gain: source.gain,
+    legitimacyDelta: rootRegime.legitimacyDelta ?? immediate?.legitimacyDelta,
+    controlDelta: rootRegime.controlDelta ?? immediate?.controlDelta,
   };
 }
 
@@ -84,10 +111,12 @@ export function createInitialState(cards?: Card[]): GameState {
     lastOutcomeSummary: null,
     statChangesPreview: null,
     resourceChangesPreview: null,
+    regimeChangesPreview: null,
     reshuffleCount: 0,
     lastDeckAction: null,
     stats: defaultStats(),
     resources: defaultResources(),
+    ...defaultRegimeTracks(),
     hand: drawn.hand,
     deck: drawn.deck,
     deckDiscard: drawn.discard,
@@ -98,6 +127,7 @@ export function createInitialState(cards?: Card[]): GameState {
     eventHistory: [],
     lastResolvedEvent: null,
     scheduledEffects: [],
+    activeCrises: [],
     gameResult: null,
     finalStatsSnapshot: null,
     log: ['Campaign opened.'],

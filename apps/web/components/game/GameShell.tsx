@@ -6,6 +6,7 @@ import { CardBar } from '@/components/game/CardBar';
 import { CrisisPanel } from '@/components/game/CrisisPanel';
 import { EventModal } from '@/components/game/EventModal';
 import { FactionBoard } from '@/components/game/FactionBoard';
+import { RegimeStatusPanel } from '@/components/game/RegimeStatusPanel';
 import { GameOverScreen } from '@/components/game/GameOverScreen';
 import { PlayedCards } from '@/components/game/PlayedCards';
 import { Timeline } from '@/components/game/Timeline';
@@ -30,6 +31,8 @@ export function GameShell() {
   const maxPlayerActionsPerRound = useGameStore((s) => s.state.maxPlayerActionsPerRound);
   const phase = useGameStore((s) => s.state.phase);
   const stats = useGameStore((s) => s.state.stats);
+  const legitimacy = useGameStore((s) => s.state.legitimacy);
+  const control = useGameStore((s) => s.state.control);
   const stability = calculateStabilityIndex(stats);
 
   if (phase === 'game_over') {
@@ -61,6 +64,7 @@ export function GameShell() {
           maxPlayerActionsPerRound={maxPlayerActionsPerRound}
           phase={phase}
         />
+        <RegimeStatusPanel legitimacy={legitimacy} control={control} />
         <FactionBoard stats={stats} />
         <div className="grid min-h-0 grid-cols-12 gap-4">
           <aside className="col-span-4 flex min-h-[220px] flex-col lg:min-h-[360px]">

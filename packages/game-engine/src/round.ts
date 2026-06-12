@@ -3,6 +3,7 @@ import {
   applyStatEffects,
   clampResourcesNonNegative,
   clampStats,
+  ENABLE_ELECTIONS,
   MAX_HAND_CARDS,
   type DiceResult,
   type EventChoice,
@@ -10,10 +11,21 @@ import {
   type GameState,
   type Outcome,
   type PlayerStats,
+  type RegimeDelta,
   type ScheduledEffect,
 } from '@all-according-to-plan/shared';
 import { drawOneCard } from './deck';
+import { processEndOfRoundCrises, spawnRandomCrisis } from './crisis';
+import type { CrisisLibrary } from './crisis-library';
 import { applyInstabilityDrift } from './decay';
+import {
+  applyRegimeDeltaToState,
+  applyRegimePressure,
+  calculateEndScore,
+  collapseSummaryText,
+  isRegimeCollapsed,
+  regimeCollapseCause,
+} from './regime';
 import { deterministicRollPercent } from './rng';
 import type { CardLibrary } from './library';
 
@@ -45,6 +57,7 @@ const MOCK_EVENTS: GameEvent[] = [
           success: {
             statDeltas: { people: { fear: 1 }, security: { loyalty: 1, satisfaction: 1 } },
             resourceDeltas: { money: -1 },
+            legitimacyDelta: 2,
           },
           partial: {
             statDeltas: {
@@ -53,6 +66,7 @@ const MOCK_EVENTS: GameEvent[] = [
               security: { loyalty: 1 },
             },
             resourceDeltas: { money: -2 },
+            legitimacyDelta: -2,
           },
           failure: {
             statDeltas: {
@@ -61,6 +75,7 @@ const MOCK_EVENTS: GameEvent[] = [
               security: { loyalty: -1 },
             },
             resourceDeltas: { money: -3, authority: -1 },
+            legitimacyDelta: -8,
           },
         },
       },
@@ -137,6 +152,7 @@ const MOCK_EVENTS: GameEvent[] = [
           success: {
             statDeltas: { security: { loyalty: 2 }, people: { fear: 1 }, elites: { fear: 1 } },
             resourceDeltas: { influence: 1 },
+            controlDelta: 3,
           },
           partial: {
             statDeltas: { security: { loyalty: 1 }, people: { fear: 2 }, elites: { loyalty: -1 } },
@@ -145,6 +161,7 @@ const MOCK_EVENTS: GameEvent[] = [
           failure: {
             statDeltas: { security: { loyalty: -1 }, people: { satisfaction: -1, fear: 2 }, elites: { loyalty: -1 } },
             resourceDeltas: { influence: -1, authority: -1 },
+            controlDelta: -10,
           },
         },
       },
@@ -175,6 +192,7 @@ const MOCK_EVENTS: GameEvent[] = [
           success: {
             statDeltas: { people: { loyalty: 2, satisfaction: 1 }, elites: { fear: 1 } },
             resourceDeltas: { money: -1, influence: -1 },
+            legitimacyDelta: 2,
           },
           partial: {
             statDeltas: { people: { loyalty: 1 }, elites: { loyalty: -1 }, security: { satisfaction: 1 } },
@@ -183,6 +201,8 @@ const MOCK_EVENTS: GameEvent[] = [
           failure: {
             statDeltas: { people: { satisfaction: -1, fear: 1 }, elites: { loyalty: -1 }, security: { fear: 1 } },
             resourceDeltas: { money: -2, influence: -1 },
+            legitimacyDelta: -6,
+            controlDelta: -2,
           },
         },
       },
@@ -265,6 +285,8 @@ export function createElectionEvent(state: GameState): GameEvent {
               security: { satisfaction: 1 },
             },
             resourceDeltas: { influence: 1 },
+            legitimacyDelta: 4,
+            controlDelta: 2,
           },
           partial: {
             statDeltas: {
@@ -273,6 +295,7 @@ export function createElectionEvent(state: GameState): GameEvent {
               security: { loyalty: 1 },
             },
             resourceDeltas: { money: -1 },
+            legitimacyDelta: -3,
           },
           failure: {
             statDeltas: {
@@ -281,13 +304,15 @@ export function createElectionEvent(state: GameState): GameEvent {
               security: { loyalty: -2 },
             },
             resourceDeltas: { influence: -2, authority: -1 },
+            legitimacyDelta: -10,
+            controlDelta: -5,
           },
         },
       },
     ],
     outcomePreview: {
       success: 'The election confirms your control and extends your mandate.',
-      failure: 'You lose the election and the regime fragments immediately.',
+      failure: 'Electoral defeat erodes legitimacy and strains institutional control.',
     },
   };
 }
@@ -341,6 +366,16 @@ function pickOutcome(choice: EventChoice, dice: DiceResult): { label: string; ou
   return { label: 'Failure', outcome: choice.outcomes.failure };
 }
 
+function regimePreviewFromOutcome(outcome: Outcome): RegimeDelta | null {
+  if (outcome.legitimacyDelta === undefined && outcome.controlDelta === undefined) {
+    return null;
+  }
+  const preview: RegimeDelta = {};
+  if (outcome.legitimacyDelta !== undefined) preview.legitimacyDelta = outcome.legitimacyDelta;
+  if (outcome.controlDelta !== undefined) preview.controlDelta = outcome.controlDelta;
+  return preview;
+}
+
 function applyOutcomeStats(stats: PlayerStats, deltas: Outcome['statDeltas']): PlayerStats {
   const next: PlayerStats = {
     people: { ...stats.people },
@@ -367,16 +402,6 @@ function isFailureState(stats: PlayerStats): boolean {
   );
 }
 
-function calculateEndScore(stats: PlayerStats, resources: GameState['resources']): number {
-  const remainingResources = resources.money + resources.influence + resources.authority;
-  const score =
-    stats.people.satisfaction * 2 +
-    stats.elites.loyalty * 2 +
-    stats.security.fear +
-    remainingResources;
-  return Math.round(score);
-}
-
 function stabilityIndex(stats: PlayerStats): number {
   const groups: Array<keyof PlayerStats> = ['people', 'elites', 'security'];
   let total = 0;
@@ -387,13 +412,28 @@ function stabilityIndex(stats: PlayerStats): number {
   return Math.round(total / groups.length);
 }
 
-function computeGameResult(stats: PlayerStats, resources: GameState['resources']): GameState['gameResult'] {
-  const score = calculateEndScore(stats, resources);
+function computeGameResult(
+  stats: PlayerStats,
+  resources: GameState['resources'],
+  legitimacy: number,
+  control: number
+): GameState['gameResult'] {
+  const score = calculateEndScore(stats, resources, legitimacy, control);
+  if (isRegimeCollapsed({ legitimacy, control })) {
+    const cause = regimeCollapseCause({ legitimacy, control })!;
+    return {
+      type: 'failure',
+      score,
+      summaryText: collapseSummaryText(cause),
+      collapseCause: cause,
+    };
+  }
   if (isFailureState(stats)) {
     return {
       type: 'failure',
       score,
       summaryText: 'The state collapsed under internal pressure.',
+      collapseCause: 'factions',
     };
   }
   const stable = stabilityIndex(stats);
@@ -414,57 +454,79 @@ function computeGameResult(stats: PlayerStats, resources: GameState['resources']
 function computeFinalSnapshot(
   stats: PlayerStats,
   resources: GameState['resources'],
-  state: GameState
+  state: GameState,
+  legitimacy: number,
+  control: number
 ): GameState['finalStatsSnapshot'] {
   return {
     stats,
     resources,
     totalCardsPlayed: state.playedCardIds.length,
     totalEvents: state.eventHistory.length + 1,
+    finalLegitimacy: legitimacy,
+    finalControl: control,
   };
 }
 
 export function applyDueScheduled(
   stats: PlayerStats,
   scheduled: ScheduledEffect[],
-  round: number
-): { stats: PlayerStats; scheduled: ScheduledEffect[] } {
+  round: number,
+  legitimacy: number,
+  control: number
+): { stats: PlayerStats; scheduled: ScheduledEffect[]; legitimacy: number; control: number } {
   let nextStats = stats;
+  let nextLegitimacy = legitimacy;
+  let nextControl = control;
   const remaining: ScheduledEffect[] = [];
   for (const item of scheduled) {
     if (item.firesAtRound === round) {
       nextStats = applyStatEffects(nextStats, item.effects);
+      const tracks = applyRegimeDeltaToState(nextLegitimacy, nextControl, item);
+      nextLegitimacy = tracks.legitimacy;
+      nextControl = tracks.control;
     } else {
       remaining.push(item);
     }
   }
-  return { stats: nextStats, scheduled: remaining };
+  return { stats: nextStats, scheduled: remaining, legitimacy: nextLegitimacy, control: nextControl };
 }
 
 export function applyPassiveEffects(state: GameState, library: CardLibrary): GameState {
   if (state.activeAssets.length === 0) return state;
   let stats = state.stats;
+  let legitimacy = state.legitimacy;
+  let control = state.control;
   for (const assetId of state.activeAssets) {
     const card = library.get(assetId);
     if (!card || card.type !== 'asset') continue;
     const passives = card.passiveEffects ?? [];
     for (const passive of passives) {
       stats = applyStatEffects(stats, passive);
+      const tracks = applyRegimeDeltaToState(legitimacy, control, passive);
+      legitimacy = tracks.legitimacy;
+      control = tracks.control;
     }
   }
-  return stats === state.stats
-    ? state
-    : {
-        ...state,
-        stats,
-        log: [...state.log, `Round ${state.round}: passive asset effects applied`],
-      };
+  if (stats === state.stats && legitimacy === state.legitimacy && control === state.control) {
+    return state;
+  }
+  return {
+    ...state,
+    stats,
+    legitimacy,
+    control,
+    log: [...state.log, `Round ${state.round}: passive asset effects applied`],
+  };
 }
 
 export function beginEventModal(state: GameState): GameState {
   if (state.phase !== 'player') return state;
   if (state.playerActionsUsed < state.maxPlayerActionsPerRound) return state;
-  const ev = isElectionRound(state.round) ? createElectionEvent(state) : getNormalEvent(state);
+  const ev =
+    ENABLE_ELECTIONS && isElectionRound(state.round)
+      ? createElectionEvent(state)
+      : getNormalEvent(state);
   if (!ev) return state;
   return {
     ...state,
@@ -476,6 +538,7 @@ export function beginEventModal(state: GameState): GameState {
     lastOutcomeSummary: null,
     statChangesPreview: null,
     resourceChangesPreview: null,
+    regimeChangesPreview: null,
     log: [...state.log, `Round ${state.round}: ${ev.title} — choose response`],
   };
 }
@@ -533,41 +596,6 @@ export function rollPendingEvent(state: GameState): EventProgressResult {
     outcomeType,
   };
   const picked = pickOutcome(choice, diceResult);
-  if (state.pendingEvent.type === 'election' && diceResult.outcomeType === 'failure') {
-    const historyEntry = {
-      round: state.round,
-      eventId: state.pendingEvent.id,
-      title: state.pendingEvent.title,
-      description: state.pendingEvent.description,
-      outcomeLabel: 'Failure',
-    };
-    const gameResult: GameState['gameResult'] = {
-      type: 'failure',
-      score: calculateEndScore(state.stats, state.resources),
-      summaryText: 'You lost the election and your regime collapsed.',
-    };
-    const finalStatsSnapshot = computeFinalSnapshot(state.stats, state.resources, state);
-    return {
-      ok: true,
-      state: {
-        ...state,
-        phase: 'game_over',
-        pendingEvent: null,
-        pendingChoiceId: null,
-        diceResult,
-        eventStep: 'idle',
-        lastOutcomeSummary: 'Failure',
-        statChangesPreview: null,
-        resourceChangesPreview: null,
-        eventHistory: [...state.eventHistory, historyEntry],
-        lastResolvedEvent: historyEntry,
-        activeEventIds: [...state.activeEventIds, state.pendingEvent.id],
-        gameResult,
-        finalStatsSnapshot,
-        log: [...state.log, `Round ${state.round}: election failed, regime collapsed`],
-      },
-    };
-  }
   return {
     ok: true,
     state: {
@@ -577,6 +605,7 @@ export function rollPendingEvent(state: GameState): EventProgressResult {
       lastOutcomeSummary: picked.label,
       statChangesPreview: picked.outcome.statDeltas,
       resourceChangesPreview: picked.outcome.resourceDeltas,
+      regimeChangesPreview: regimePreviewFromOutcome(picked.outcome),
       log: [...state.log, `Round ${state.round}: dice ${roll} -> ${picked.label.toLowerCase()}`],
     },
   };
@@ -599,19 +628,27 @@ export function applyRevealedOutcome(state: GameState): EventProgressResult {
   const resources = clampResourcesNonNegative(
     applyResourceDelta(state.resources, state.resourceChangesPreview)
   );
+  const regimeDelta = state.regimeChangesPreview ?? {};
+  const tracks = applyRegimeDeltaToState(state.legitimacy, state.control, regimeDelta);
   return {
     ok: true,
     state: {
       ...state,
       stats,
       resources,
+      legitimacy: tracks.legitimacy,
+      control: tracks.control,
       eventStep: 'applied',
       log: [...state.log, `Round ${state.round}: outcome applied`],
     },
   };
 }
 
-export function continueAfterAppliedEvent(library: CardLibrary, state: GameState): EventAckResult {
+export function continueAfterAppliedEvent(
+  library: CardLibrary,
+  crisisLibrary: CrisisLibrary,
+  state: GameState
+): EventAckResult {
   if (state.phase !== 'event_modal' || !state.pendingEvent) {
     return { ok: false, error: 'No event is awaiting continue.' };
   }
@@ -620,7 +657,20 @@ export function continueAfterAppliedEvent(library: CardLibrary, state: GameState
   }
   const currentRound = state.round;
   const ev = state.pendingEvent;
-  const stats = applyInstabilityDrift(state.stats);
+  const drifted = applyInstabilityDrift(state.stats);
+  const pressure = applyRegimePressure(drifted, state.legitimacy, state.control);
+  const afterCrises = processEndOfRoundCrises(
+    {
+      ...state,
+      stats: drifted,
+      legitimacy: pressure.legitimacy,
+      control: pressure.control,
+    },
+    crisisLibrary
+  );
+  let stats = afterCrises.stats;
+  let legitimacy = afterCrises.legitimacy;
+  let control = afterCrises.control;
   const bonus = drawOneCard(state.hand, state.deck, state.deckDiscard, MAX_HAND_CARDS, {
     gameSeed: state.gameSeed,
     round: state.round,
@@ -635,16 +685,17 @@ export function continueAfterAppliedEvent(library: CardLibrary, state: GameState
     outcomeLabel: state.lastOutcomeSummary ?? undefined,
   };
   const logParts = [
-    ...state.log,
+    ...afterCrises.log,
     ...(bonus.reshuffled ? [`End round ${currentRound}: deck reshuffled`] : []),
     `End round ${currentRound}: upkeep drew ${bonus.drewId ? 'a card' : 'nothing'}${
       bonus.burned ? ' (burned, hand full)' : ''
     }`,
     `End round ${currentRound}: upkeep +1 money`,
+    `End round ${currentRound}: faction pressure applied to regime tracks`,
   ];
-  if (currentRound >= state.maxRounds || isFailureState(stats)) {
-    const gameResult = computeGameResult(stats, resources);
-    const finalStatsSnapshot = computeFinalSnapshot(stats, resources, state);
+  if (currentRound >= state.maxRounds || isFailureState(stats) || isRegimeCollapsed({ legitimacy, control })) {
+    const gameResult = computeGameResult(stats, resources, legitimacy, control);
+    const finalStatsSnapshot = computeFinalSnapshot(stats, resources, state, legitimacy, control);
     return {
       ok: true,
       state: {
@@ -656,6 +707,8 @@ export function continueAfterAppliedEvent(library: CardLibrary, state: GameState
         lastDeckAction: bonus.lastDeckAction,
         stats,
         resources,
+        legitimacy,
+        control,
         phase: 'game_over',
         pendingEvent: null,
         pendingChoiceId: null,
@@ -666,29 +719,91 @@ export function continueAfterAppliedEvent(library: CardLibrary, state: GameState
         eventHistory: [...state.eventHistory, historyEntry],
         lastResolvedEvent: historyEntry,
         activeEventIds: [...state.activeEventIds, ev.id],
+        activeCrises: afterCrises.activeCrises,
         scheduledEffects: [],
         gameResult,
         finalStatsSnapshot,
         statChangesPreview: null,
         resourceChangesPreview: null,
+        regimeChangesPreview: null,
         log: [...logParts, 'Campaign concluded.'],
       },
     };
   }
   const nextRound = currentRound + 1;
-  const applied = applyDueScheduled(stats, state.scheduledEffects, nextRound);
+  const applied = applyDueScheduled(stats, afterCrises.scheduledEffects, nextRound, legitimacy, control);
   const withPassive = applyPassiveEffects(
     {
-      ...state,
+      ...afterCrises,
       round: nextRound,
       stats: applied.stats,
+      legitimacy: applied.legitimacy,
+      control: applied.control,
+      scheduledEffects: state.scheduledEffects,
     },
     library
   );
+  const spawned = spawnRandomCrisis(
+    {
+      ...withPassive,
+      hand: bonus.hand,
+      deck: bonus.deck,
+      deckDiscard: bonus.discard,
+      reshuffleCount: bonus.reshuffleCount,
+      lastDeckAction: bonus.lastDeckAction,
+      resources,
+      eventHistory: [...state.eventHistory, historyEntry],
+      lastResolvedEvent: historyEntry,
+      activeEventIds: [...state.activeEventIds, ev.id],
+      scheduledEffects: applied.scheduled,
+    },
+    crisisLibrary,
+    nextRound
+  );
+  if (isRegimeCollapsed(spawned.state)) {
+    const gameResult = computeGameResult(
+      spawned.state.stats,
+      resources,
+      spawned.state.legitimacy,
+      spawned.state.control
+    );
+    const finalStatsSnapshot = computeFinalSnapshot(
+      spawned.state.stats,
+      resources,
+      state,
+      spawned.state.legitimacy,
+      spawned.state.control
+    );
+    return {
+      ok: true,
+      state: {
+        ...spawned.state,
+        phase: 'game_over',
+        pendingEvent: null,
+        pendingChoiceId: null,
+        diceResult: null,
+        eventStep: 'idle',
+        playerActionsUsed: 0,
+        cardsPlayedThisRound: [],
+        gameResult,
+        finalStatsSnapshot,
+        statChangesPreview: null,
+        resourceChangesPreview: null,
+        regimeChangesPreview: null,
+        log: [
+          ...logParts,
+          ...(spawned.state.log.length > withPassive.log.length
+            ? spawned.state.log.slice(withPassive.log.length)
+            : []),
+          'Campaign concluded.',
+        ],
+      },
+    };
+  }
   return {
     ok: true,
     state: {
-      ...withPassive,
+      ...spawned.state,
       phase: 'player',
       pendingEvent: null,
       pendingChoiceId: null,
@@ -696,21 +811,17 @@ export function continueAfterAppliedEvent(library: CardLibrary, state: GameState
       eventStep: 'idle',
       playerActionsUsed: 0,
       cardsPlayedThisRound: [],
-      resources,
-      hand: bonus.hand,
-      deck: bonus.deck,
-      deckDiscard: bonus.discard,
-      reshuffleCount: bonus.reshuffleCount,
-      lastDeckAction: bonus.lastDeckAction,
-      eventHistory: [...state.eventHistory, historyEntry],
-      lastResolvedEvent: historyEntry,
-      activeEventIds: [...state.activeEventIds, ev.id],
-      scheduledEffects: applied.scheduled,
       gameResult: null,
       finalStatsSnapshot: null,
       statChangesPreview: null,
       resourceChangesPreview: null,
-      log: logParts,
+      regimeChangesPreview: null,
+      log: [
+        ...logParts,
+        ...(spawned.state.log.length > withPassive.log.length
+          ? spawned.state.log.slice(withPassive.log.length)
+          : []),
+      ],
     },
   };
 }

@@ -45,6 +45,18 @@ function formatResourcePreview(delta: GameState['resourceChangesPreview']): stri
   return lines;
 }
 
+function formatRegimePreview(delta: GameState['regimeChangesPreview']): string[] {
+  if (!delta) return [];
+  const lines: string[] = [];
+  if (delta.legitimacyDelta) {
+    lines.push(`Legitimacy ${delta.legitimacyDelta > 0 ? '+' : ''}${delta.legitimacyDelta}`);
+  }
+  if (delta.controlDelta) {
+    lines.push(`Control ${delta.controlDelta > 0 ? '+' : ''}${delta.controlDelta}`);
+  }
+  return lines;
+}
+
 function formatStatPreview(delta: GameState['statChangesPreview']): string[] {
   if (!delta) return [];
   const lines: string[] = [];
@@ -213,7 +225,10 @@ export function EventModal() {
                     </div>
                     {selectedOutcome ? (
                       <div className="pt-1 text-xs text-state-paper-dim">
-                        {formatStatPreview(selectedOutcome.statDeltas).join(' · ')}
+                        {[
+                          ...formatStatPreview(selectedOutcome.statDeltas),
+                          ...formatRegimePreview(selectedOutcome),
+                        ].join(' · ')}
                       </div>
                     ) : null}
                   </motion.div>
@@ -234,6 +249,9 @@ export function EventModal() {
                       ))}
                       {formatResourcePreview(state.resourceChangesPreview ?? {}).map((line, i) => (
                         <li key={`r-${i}`}>{line}</li>
+                      ))}
+                      {formatRegimePreview(state.regimeChangesPreview).map((line, i) => (
+                        <li key={`g-${i}`}>{line}</li>
                       ))}
                     </ul>
                   </motion.div>

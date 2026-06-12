@@ -1,15 +1,28 @@
-import { GROUP_KEYS, MAX_HAND_CARDS, STAT_MAX, STAT_MIN } from './constants';
+import {
+  GROUP_KEYS,
+  INITIAL_CONTROL,
+  INITIAL_LEGITIMACY,
+  MAX_HAND_CARDS,
+  REGIME_MAX,
+  REGIME_MIN,
+  STAT_MAX,
+  STAT_MIN,
+} from './constants';
 import type {
   Card,
   CardCost,
   CardEffects,
+  CrisisDefinition,
   DeckState,
+  EffectsBundle,
   FactionStatBlock,
   GameEvent,
   GroupKey,
   GroupStats,
   HandState,
   PlayerStats,
+  RegimeDelta,
+  RegimeTracks,
   ResourceKey,
   Resources,
 } from './types';
@@ -78,6 +91,43 @@ export function clampResourcesNonNegative(resources: Resources): Resources {
     influence: Math.max(0, resources.influence),
     authority: Math.max(0, resources.authority),
   };
+}
+
+export function clampLegitimacy(value: number): number {
+  return clampNumber(value, REGIME_MIN, REGIME_MAX);
+}
+
+export function clampControl(value: number): number {
+  return clampNumber(value, REGIME_MIN, REGIME_MAX);
+}
+
+export function clampRegimeTracks(tracks: RegimeTracks): RegimeTracks {
+  return {
+    legitimacy: clampLegitimacy(tracks.legitimacy),
+    control: clampControl(tracks.control),
+  };
+}
+
+export function defaultRegimeTracks(): RegimeTracks {
+  return { legitimacy: INITIAL_LEGITIMACY, control: INITIAL_CONTROL };
+}
+
+export function applyRegimeDelta(
+  legitimacy: number,
+  control: number,
+  delta: RegimeDelta
+): RegimeTracks {
+  return clampRegimeTracks({
+    legitimacy: legitimacy + (delta.legitimacyDelta ?? 0),
+    control: control + (delta.controlDelta ?? 0),
+  });
+}
+
+export function regimeDeltaFromBlock(block: RegimeDelta): RegimeDelta {
+  const out: RegimeDelta = {};
+  if (block.legitimacyDelta !== undefined) out.legitimacyDelta = block.legitimacyDelta;
+  if (block.controlDelta !== undefined) out.controlDelta = block.controlDelta;
+  return out;
 }
 
 export function handStateFromIds(ids: readonly string[], maxSize = MAX_HAND_CARDS): HandState {
@@ -167,6 +217,24 @@ export function describeCardEffectBullets(card: Card): string[] {
     if (g.influence) out.push(`• Influence ${g.influence > 0 ? '+' : ''}${g.influence}`);
     if (g.authority) out.push(`• Authority ${g.authority > 0 ? '+' : ''}${g.authority}`);
   }
+  if (card.legitimacyDelta) {
+    const sign = card.legitimacyDelta > 0 ? '+' : '';
+    out.push(`• Legitimacy ${sign}${card.legitimacyDelta}`);
+  }
+  if (card.controlDelta) {
+    const sign = card.controlDelta > 0 ? '+' : '';
+    out.push(`• Control ${sign}${card.controlDelta}`);
+  }
+  for (const passive of card.passiveEffects ?? []) {
+    if (passive.legitimacyDelta) {
+      const sign = passive.legitimacyDelta > 0 ? '+' : '';
+      out.push(`• Legitimacy ${sign}${passive.legitimacyDelta} each round`);
+    }
+    if (passive.controlDelta) {
+      const sign = passive.controlDelta > 0 ? '+' : '';
+      out.push(`• Control ${sign}${passive.controlDelta} each round`);
+    }
+  }
   return out.length ? out : ['• See card description for impact'];
 }
 
@@ -192,6 +260,56 @@ export function describeGameEventEffectLines(ev: GameEvent): string[] {
   }
   if (lines.length === 0) lines.push('No mechanical changes.');
   return lines;
+}
+
+export function describeEffectsBundleLines(bundle?: EffectsBundle, perRound = false): string[] {
+  if (!bundle) return [];
+  const suffix = perRound ? ' per round' : '';
+  const lines: string[] = [];
+  if (bundle.legitimacyDelta) {
+    const sign = bundle.legitimacyDelta > 0 ? '+' : '';
+    lines.push(`${sign}${bundle.legitimacyDelta} Legitimacy${suffix}`);
+  }
+  if (bundle.controlDelta) {
+    const sign = bundle.controlDelta > 0 ? '+' : '';
+    lines.push(`${sign}${bundle.controlDelta} Control${suffix}`);
+  }
+  if (bundle.resourceDeltas) {
+    const r = bundle.resourceDeltas;
+    if (r.money) lines.push(`${r.money > 0 ? '+' : ''}${r.money} Money${suffix}`);
+    if (r.influence) lines.push(`${r.influence > 0 ? '+' : ''}${r.influence} Influence${suffix}`);
+    if (r.authority) lines.push(`${r.authority > 0 ? '+' : ''}${r.authority} Authority${suffix}`);
+  }
+  if (bundle.statDeltas) {
+    const labels: Record<GroupKey, string> = {
+      people: 'People',
+      elites: 'Elites',
+      security: 'Security',
+    };
+    for (const key of GROUP_KEYS) {
+      const block = bundle.statDeltas[key];
+      if (!block) continue;
+      const bits: string[] = [];
+      if (block.satisfaction) bits.push(`satisfaction ${block.satisfaction > 0 ? '+' : ''}${block.satisfaction}`);
+      if (block.loyalty) bits.push(`loyalty ${block.loyalty > 0 ? '+' : ''}${block.loyalty}`);
+      if (block.fear) bits.push(`fear ${block.fear > 0 ? '+' : ''}${block.fear}`);
+      if (bits.length) lines.push(`${labels[key]}: ${bits.join(', ')}${suffix}`);
+    }
+  }
+  return lines;
+}
+
+export function formatCrisisResolutionCost(def: CrisisDefinition): string {
+  const parts: string[] = [];
+  const cost = def.resolution?.actionCost ?? 0;
+  if (cost > 0) {
+    parts.push(`${cost} Action${cost > 1 ? 's' : ''}`);
+  }
+  const resources = def.resolution?.resourceCost;
+  if (resources?.money) parts.push(`${resources.money} Money`);
+  if (resources?.influence) parts.push(`${resources.influence} Influence`);
+  if (resources?.authority) parts.push(`${resources.authority} Authority`);
+  return parts.join(', ');
 }
 
 export function calculateStabilityIndex(stats: PlayerStats): number {

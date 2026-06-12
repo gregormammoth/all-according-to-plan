@@ -4,12 +4,16 @@ import {
   canPay,
   clampResourcesNonNegative,
   payCost,
+  regimeDeltaFromBlock,
   type GameState,
   type ResourceType,
   type Resources,
 } from '@all-according-to-plan/shared';
 import type { CardLibrary } from './library';
+import type { CrisisLibrary } from './crisis-library';
+import { resolveCrisis as resolveCrisisEngine } from './crisis';
 import { drawOneCard } from './deck';
+import { applyRegimeDeltaToState } from './regime';
 import { beginEventModal } from './round';
 import { MAX_HAND_CARDS } from './state';
 
@@ -49,8 +53,20 @@ export function playCard(library: CardLibrary, state: GameState, cardId: string)
   }
   let resources = clampResourcesNonNegative(payCost(state.resources, card.cost));
   let stats = state.stats;
+  let legitimacy = state.legitimacy;
+  let control = state.control;
   if (card.immediateEffects) {
     stats = applyStatEffects(stats, card.immediateEffects);
+    const tracks = applyRegimeDeltaToState(legitimacy, control, regimeDeltaFromBlock(card.immediateEffects));
+    legitimacy = tracks.legitimacy;
+    control = tracks.control;
+  } else if (card.legitimacyDelta !== undefined || card.controlDelta !== undefined) {
+    const tracks = applyRegimeDeltaToState(legitimacy, control, {
+      legitimacyDelta: card.legitimacyDelta,
+      controlDelta: card.controlDelta,
+    });
+    legitimacy = tracks.legitimacy;
+    control = tracks.control;
   }
   if (card.gain) {
     resources = clampResourcesNonNegative(applyResourceDelta(resources, card.gain));
@@ -58,7 +74,16 @@ export function playCard(library: CardLibrary, state: GameState, cardId: string)
   const scheduledEffects = [...state.scheduledEffects];
   if (card.delayedEffects && card.delayedEffects.length > 0) {
     for (const delayed of card.delayedEffects) {
-      scheduledEffects.push({ firesAtRound: state.round + 1, effects: delayed });
+      scheduledEffects.push({
+        firesAtRound: state.round + 1,
+        effects: {
+          people: delayed.people,
+          elites: delayed.elites,
+          security: delayed.security,
+        },
+        legitimacyDelta: delayed.legitimacyDelta,
+        controlDelta: delayed.controlDelta,
+      });
     }
   }
   const nextActionIndex = state.playerActionsUsed + 1;
@@ -76,6 +101,8 @@ export function playCard(library: CardLibrary, state: GameState, cardId: string)
     ...state,
     stats,
     resources,
+    legitimacy,
+    control,
     hand,
     activeAssets,
     deckDiscard,
@@ -156,5 +183,19 @@ export function gainResource(_library: CardLibrary, state: GameState, resource: 
     log,
   };
   nextState = afterPlayerAction(nextState);
+  return { ok: true, state: nextState };
+}
+
+export function resolveCrisis(
+  _cardLibrary: CardLibrary,
+  crisisLibrary: CrisisLibrary,
+  state: GameState,
+  crisisId: string
+): PlayResult {
+  const res = resolveCrisisEngine(state, crisisId, crisisLibrary);
+  if (!res.ok) {
+    return res;
+  }
+  const nextState = afterPlayerAction(res.state);
   return { ok: true, state: nextState };
 }

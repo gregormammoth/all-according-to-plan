@@ -5,10 +5,13 @@ import {
   createInitialState,
   drawCard,
   gainResource,
+  getDefaultCrisisLibrary,
   getDefaultLibrary,
   playCard,
+  resolveCrisis,
   rollPendingEvent,
   type CardLibrary,
+  type CrisisLibrary,
 } from '@all-according-to-plan/game-engine';
 import type { GameEvent, GameState, ResourceType } from '@all-according-to-plan/shared';
 import { create } from 'zustand';
@@ -42,12 +45,14 @@ function afterPlayerPhaseTransition(state: GameState) {
 type GameStore = {
   state: GameState;
   library: CardLibrary;
+  crisisLibrary: CrisisLibrary;
   error: string | null;
   eventModal: EventModalState;
   roundSnapshot: RoundSnapshot | null;
   play: (cardId: string) => void;
   draw: () => void;
   gain: (resource: ResourceType) => void;
+  resolveCrisis: (crisisId: string) => void;
   selectEventChoice: (choiceId: string) => void;
   rollEvent: () => void;
   applyEventOutcome: () => void;
@@ -63,6 +68,7 @@ const initialSnapshot = captureRoundSnapshot(initialState);
 export const useGameStore = create<GameStore>((set, get) => ({
   state: initialState,
   library: getDefaultLibrary(),
+  crisisLibrary: getDefaultCrisisLibrary(),
   error: null,
   eventModal: initialModal,
   roundSnapshot: initialSnapshot,
@@ -90,6 +96,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
   gain: (resource) => {
     const res = gainResource(get().library, get().state, resource);
+    if (!res.ok) {
+      set({ error: res.error });
+      return;
+    }
+    set({
+      ...afterPlayerPhaseTransition(res.state),
+      error: null,
+    });
+  },
+  resolveCrisis: (crisisId) => {
+    const res = resolveCrisis(get().library, get().crisisLibrary, get().state, crisisId);
     if (!res.ok) {
       set({ error: res.error });
       return;
@@ -136,7 +153,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
   continueEvent: () => {
-    const res = continueAfterAppliedEvent(get().library, get().state);
+    const res = continueAfterAppliedEvent(get().library, get().crisisLibrary, get().state);
     if (!res.ok) {
       set({ error: res.error });
       return;

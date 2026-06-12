@@ -6,7 +6,7 @@ Engine source of truth: `packages/game-engine` and `packages/shared`. The web cl
 
 ## Objective
 
-Govern an authoritarian state for **25 rounds** with **3 actions per round**, then resolve a mandatory **event** each round. Win, survive, or fail based on final faction health, stability index, and special election failure.
+Govern an authoritarian state for **25 rounds** with **3 actions per round**, then resolve a mandatory **event** each round. Win, survive, or fail based on faction health, **Legitimacy** and **Control** regime tracks, and stability index at round 25.
 
 ---
 
@@ -16,7 +16,7 @@ Govern an authoritarian state for **25 rounds** with **3 actions per round**, th
 
 - `playerActionsUsed` starts at 0 each round.
 - `maxPlayerActionsPerRound` is 3.
-- Valid actions: `playCard`, `drawCard`, `gainResource`.
+- Valid actions: `playCard`, `drawCard`, `gainResource`, `resolveCrisis`.
 - When `playerActionsUsed` reaches 3 after any action, `beginEventModal` runs immediately.
 
 ### Event modal phase (`phase: 'event_modal'`)
@@ -56,6 +56,91 @@ Helpers in `@all-according-to-plan/shared`: `applyStatEffects`, `clampStats`, `c
 
 ---
 
+## Regime tracks
+
+Global stats on `GameState` (Arkham Horror–style regime health):
+
+| Track | Initial | Range |
+|-------|---------|-------|
+| `legitimacy` | 75 | 0–100 |
+| `control` | 75 | 0–100 |
+
+Helpers in `@all-according-to-plan/shared`: `clampLegitimacy`, `clampControl`, `clampRegimeTracks`, `applyRegimeDelta`, `defaultRegimeTracks`.
+
+### Collapse
+
+`isRegimeCollapsed(state)` → `legitimacy <= 0` **or** `control <= 0`.
+
+Checked at end of round in `continueAfterAppliedEvent` (after instability drift and faction pressure). On collapse:
+
+- `phase` → `game_over`
+- `gameResult.type` → `failure`
+- `collapseCause` → `'legitimacy'` or `'control'` with themed summary text
+
+Election failure no longer ends the game immediately; it applies legitimacy/control damage like other events.
+
+---
+
+## Crisis system
+
+Persistent crises replace election-driven pressure while `ENABLE_ELECTIONS` is `false` in `packages/shared/src/constants.ts`.
+
+### Active crises
+
+`GameState.activeCrises: ActiveCrisis[]` where each entry tracks `crisisId`, `doom`, and `createdRound`.
+
+Definitions live in `packages/shared/src/data/crises.json`.
+
+### Spawning
+
+`spawnRandomCrisis` runs at end of round (when the campaign continues) using deterministic RNG (`gameSeed`, `round`):
+
+| Roll (1–100) | Result |
+|--------------|--------|
+| 1–30 | No spawn |
+| 31–80 | Random **minor** crisis |
+| 81–100 | Random **major** crisis |
+
+Skipped when `activeCrises.length >= MAX_ACTIVE_CRISES` (4). Duplicate crisis types cannot spawn while already active.
+
+### End of round
+
+In `continueAfterAppliedEvent`, after instability drift and faction pressure:
+
+1. Apply each active crisis `ongoingEffects` (legitimacy/control/resources/stats).
+2. Increment `doom` on every active crisis.
+3. When `doom >= CRISIS_DOOM_THRESHOLD` (5): apply `escalationEffects`, then **reset doom to 0** (crisis stays active until resolved).
+
+### Resolution
+
+Player action `resolveCrisis(crisisId)` during `player` phase:
+
+1. Spend `resolution.actionCost` actions and `resolution.resourceCost` if defined.
+2. If a test is defined: `deterministicRollPercent` vs difficulty, with +2% per legitimacy/control point above 50.
+3. Apply `successEffects` or `failureEffects`.
+4. Remove crisis when `successEffects.removeCrisis` is set (or on automatic success when no test).
+
+### Elections (disabled)
+
+Set `ENABLE_ELECTIONS = true` in `constants.ts` to restore election rounds on cycles 4, 8, 12, … (below round 25). Election code remains in `round.ts` unchanged.
+
+### End-of-round pressure
+
+After `applyInstabilityDrift`, passive damage from factions:
+
+```
+legitimacyLoss = (10 - people.satisfaction) * 0.8 + (10 - people.loyalty) * 0.4
+controlLoss    = (10 - security.loyalty) * 0.6 + (10 - elites.loyalty) * 0.4
+```
+
+Constants live in `packages/game-engine/src/regime.ts`. Tracks are clamped after pressure.
+
+### Card and event deltas
+
+Optional `legitimacyDelta` / `controlDelta` on cards (immediate, passive, delayed) and event outcomes. Applied wherever stat/resource effects are applied.
+
+---
+
 ## Player actions
 
 ### Play card (`playCard`)
@@ -65,9 +150,9 @@ Helpers in `@all-according-to-plan/shared`: `applyStatEffects`, `clampStats`, `c
  On success:
 
 1. Pay `card.cost`.
-2. Apply `immediateEffects` to stats.
+2. Apply `immediateEffects` to stats and any regime deltas on the block.
 3. Apply `gain` to resources if present.
-4. For each entry in `delayedEffects`, push `{ firesAtRound: round + 1, effects }` onto `scheduledEffects`.
+4. For each entry in `delayedEffects`, push `{ firesAtRound: round + 1, effects, legitimacyDelta?, controlDelta? }` onto `scheduledEffects`.
 5. Remove card from `hand`.
 6. If `card.type === 'asset'`: append to `activeAssets` (not discard).
 7. If `card.type === 'event'`: append to `deckDiscard`.
@@ -99,12 +184,16 @@ type Card = {
   type: 'asset' | 'event';
   archetype?: string;
   cost: Partial<Resources>;
-  immediateEffects?: CardEffects;
-  passiveEffects?: CardEffects[];
+  immediateEffects?: EffectBlock;
+  passiveEffects?: EffectBlock[];
   gain?: Partial<Resources>;
-  delayedEffects?: CardEffects[];
+  delayedEffects?: EffectBlock[];
+  legitimacyDelta?: number;
+  controlDelta?: number;
 };
 ```
+
+`EffectBlock` = `CardEffects` + optional regime deltas.
 
 ### Normalization (`state.ts`)
 
@@ -154,9 +243,8 @@ When `deck.length === 0` and `discard.length > 0` during a draw:
 
 ### Selection
 
-- **Election rounds:** `isElectionRound(round)` → `round % 4 === 0 && round < 25`.
-  - `createElectionEvent(state)` with dynamic probabilities from stats.
-- **Other rounds:** `MOCK_EVENTS[(round - 1) % length]`.
+- **Election rounds** (only when `ENABLE_ELECTIONS`): `isElectionRound(round)` → `round % 4 === 0 && round < 25` → `createElectionEvent(state)`.
+- **Default:** `MOCK_EVENTS[(round - 1) % length]`.
 
 ### Choices and dice
 
@@ -164,7 +252,7 @@ Each choice defines:
 
 ```ts
 probability: { success, partial, failure }  // percent bands, sum ≤ 100
-outcomes: { success, partial, failure }       // statDeltas + resourceDeltas
+outcomes: { success, partial, failure }       // statDeltas + resourceDeltas + regime deltas
 ```
 
 `deterministicRollPercent(gameSeed, round, choiceId)` → integer 1–100.
@@ -175,16 +263,13 @@ Outcome bands:
 - `roll <= success + partial` → partial_success
 - else → failure
 
-### Election failure (instant game over)
+### Election failure
 
-If `pendingEvent.type === 'election'` and dice outcome is `failure`:
+Applies large legitimacy/control penalties via outcome deltas. The campaign continues unless regime tracks collapse at round end.
 
-- `phase` → `game_over` immediately (no `continueAfterAppliedEvent` upkeep).
-- `gameResult.type` = `failure`, summary about lost election.
+### Event failure
 
-### Normal event failure
-
-Does not end the run unless combined with collapse at round end.
+Does not end the run unless combined with regime collapse or faction failure at round end.
 
 ---
 
@@ -193,16 +278,18 @@ Does not end the run unless combined with collapse at round end.
 After `eventStep === 'applied'`:
 
 1. `applyInstabilityDrift`: per faction satisfaction −0.15, loyalty −0.1, fear +0.1.
-2. Bonus `drawOneCard` (with reshuffle).
-3. `+1 money` upkeep.
-4. Push `eventHistory` entry.
-5. **If** `round >= maxRounds` **or** `isFailureState(stats)`:
+2. `applyRegimePressure` on legitimacy/control from current stats.
+3. Bonus `drawOneCard` (with reshuffle).
+4. `+1 money` upkeep.
+5. Push `eventHistory` entry.
+6. **If** `round >= maxRounds` **or** `isFailureState(stats)` **or** `isRegimeCollapsed`:
    - `computeGameResult` → victory / survival / failure
    - `finalStatsSnapshot`, `game_over`, clear pending event fields.
-6. **Else**:
+7. **Else**:
    - `nextRound = round + 1`
-   - `applyDueScheduled(stats, scheduledEffects, nextRound)`
-   - `applyPassiveEffects` for new round
+   - `applyDueScheduled(stats, scheduledEffects, nextRound, legitimacy, control)` — includes regime deltas on scheduled items
+   - `applyPassiveEffects` for new round — includes passive regime deltas
+   - Re-check `isRegimeCollapsed` after scheduled/passive
    - Reset `playerActionsUsed`, `cardsPlayedThisRound`, `phase: 'player'`
 
 ### Failure check
@@ -216,7 +303,7 @@ After `eventStep === 'applied'`:
 
 ### Score
 
-`round(people.satisfaction×2 + elites.loyalty×2 + security.fear + money + influence + authority)`
+`round(people.satisfaction×2 + elites.loyalty×2 + security.fear + money + influence + authority + legitimacy×0.5 + control×0.5)`
 
 ---
 
@@ -225,10 +312,10 @@ After `eventStep === 'applied'`:
 On play, each `delayedEffects` block schedules:
 
 ```ts
-{ firesAtRound: currentRound + 1, effects: block }
+{ firesAtRound: currentRound + 1, effects: block, legitimacyDelta?, controlDelta? }
 ```
 
-At round transition, effects with `firesAtRound === nextRound` are applied via `applyStatEffects` and removed from the queue.
+At round transition, effects with `firesAtRound === nextRound` are applied via `applyStatEffects` and `applyRegimeDelta`, then removed from the queue.
 
 ---
 
@@ -266,12 +353,13 @@ Campaign `gameSeed` defaults to `1337` in `createInitialState`.
 | `phase`, `eventStep` | UI gating |
 | `gameSeed`, `reshuffleCount` | Deterministic deck/events |
 | `pendingEvent`, `pendingChoiceId`, `diceResult` | Event modal |
-| `statChangesPreview`, `resourceChangesPreview` | Pre-apply outcome |
-| `stats`, `resources` | Core simulation |
+| `statChangesPreview`, `resourceChangesPreview`, `regimeChangesPreview` | Pre-apply outcome |
+| `stats`, `resources`, `legitimacy`, `control` | Core simulation |
 | `hand`, `deck`, `deckDiscard` | Card zones |
 | `activeAssets` | Persistent assets |
 | `playedCardIds`, `cardsPlayedThisRound` | History / UI |
 | `scheduledEffects` | Delayed card effects |
+| `activeCrises` | Persistent crisis instances |
 | `eventHistory`, `lastResolvedEvent`, `activeEventIds` | Events |
 | `gameResult`, `finalStatsSnapshot` | End screen |
 | `log` | Text trace |

@@ -13,7 +13,48 @@ export type ResourceKey = ResourceType;
 
 export type Resources = Record<ResourceKey, number>;
 
-export type ActionType = 'playCard' | 'drawCard' | 'gainResource';
+export type ActionType = 'playCard' | 'drawCard' | 'gainResource' | 'resolveCrisis';
+
+export type EffectsBundle = {
+  statDeltas?: Partial<Record<GroupKey, Partial<GroupStats>>>;
+  resourceDeltas?: Partial<Resources>;
+  legitimacyDelta?: number;
+  controlDelta?: number;
+  removeCrisis?: boolean;
+};
+
+export type CrisisSeverity = 'minor' | 'major';
+
+export type CrisisTestAttribute = 'legitimacy' | 'control';
+
+export type CrisisDefinition = {
+  id: string;
+  name: string;
+  description: string;
+  severity: CrisisSeverity;
+  ongoingEffects?: EffectsBundle;
+  escalationEffects?: EffectsBundle;
+  resolution?: {
+    actionCost: number;
+    resourceCost?: Partial<Resources>;
+    test?: {
+      attribute: CrisisTestAttribute;
+      difficulty: number;
+    };
+  };
+  successEffects?: EffectsBundle;
+  failureEffects?: EffectsBundle;
+};
+
+export type ActiveCrisis = {
+  crisisId: string;
+  doom: number;
+  createdRound: number;
+};
+
+export type CrisesDocument = {
+  crises: CrisisDefinition[];
+};
 
 export type DeckState = {
   cards: string[];
@@ -34,6 +75,13 @@ export type FactionStatBlock = {
 
 export type CardEffects = Record<GroupKey, FactionStatBlock>;
 
+export type RegimeDelta = {
+  legitimacyDelta?: number;
+  controlDelta?: number;
+};
+
+export type EffectBlock = CardEffects & RegimeDelta;
+
 export type Card = {
   id: string;
   name: string;
@@ -41,10 +89,17 @@ export type Card = {
   type: 'asset' | 'event';
   archetype?: string;
   cost: CardCost;
-  immediateEffects?: CardEffects;
-  passiveEffects?: CardEffects[];
+  immediateEffects?: EffectBlock;
+  passiveEffects?: EffectBlock[];
   gain?: Partial<Resources>;
-  delayedEffects?: CardEffects[];
+  delayedEffects?: EffectBlock[];
+  legitimacyDelta?: number;
+  controlDelta?: number;
+};
+
+export type RegimeTracks = {
+  legitimacy: number;
+  control: number;
 };
 
 export type GameEvent = {
@@ -67,6 +122,8 @@ export type GameEvent = {
 export type Outcome = {
   statDeltas: Partial<Record<GroupKey, Partial<GroupStats>>>;
   resourceDeltas: Partial<Resources>;
+  legitimacyDelta?: number;
+  controlDelta?: number;
 };
 
 export type EventChoice = {
@@ -101,12 +158,17 @@ export type GamePhase = 'player' | 'event_modal' | 'game_over';
 export type ScheduledEffect = {
   firesAtRound: number;
   effects: CardEffects;
+  legitimacyDelta?: number;
+  controlDelta?: number;
 };
+
+export type RegimeCollapseCause = 'legitimacy' | 'control' | 'factions';
 
 export type GameResult = {
   type: 'victory' | 'survival' | 'failure';
   score: number;
   summaryText: string;
+  collapseCause?: RegimeCollapseCause;
 };
 
 export type FinalStatsSnapshot = {
@@ -114,6 +176,8 @@ export type FinalStatsSnapshot = {
   resources: Resources;
   totalCardsPlayed: number;
   totalEvents: number;
+  finalLegitimacy: number;
+  finalControl: number;
 };
 
 export type GameState = {
@@ -130,10 +194,13 @@ export type GameState = {
   lastOutcomeSummary: string | null;
   statChangesPreview: Outcome['statDeltas'] | null;
   resourceChangesPreview: Outcome['resourceDeltas'] | null;
+  regimeChangesPreview: RegimeDelta | null;
   reshuffleCount: number;
   lastDeckAction: 'draw' | 'reshuffle' | null;
   stats: PlayerStats;
   resources: Resources;
+  legitimacy: number;
+  control: number;
   hand: string[];
   deck: string[];
   deckDiscard: string[];
@@ -155,6 +222,7 @@ export type GameState = {
     description: string;
   } | null;
   scheduledEffects: ScheduledEffect[];
+  activeCrises: ActiveCrisis[];
   gameResult: GameResult | null;
   finalStatsSnapshot: FinalStatsSnapshot | null;
   log: string[];

@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { FinalStatsSnapshot, GameResult } from '@all-according-to-plan/shared';
+import { controlBand, legitimacyBand } from '@/lib/regime/bands';
 import { useGameStore } from '@/state/gameStore';
 import { AnimatedNumber } from '@/lib/motion/AnimatedNumber';
 import { useMotionPrefs } from '@/lib/motion/MotionProvider';
@@ -49,7 +50,13 @@ function tintByResult(result: GameResult) {
 
 function performanceText(result: GameResult, snapshot: FinalStatsSnapshot): string {
   if (result.type === 'failure') {
-    return 'Public legitimacy collapsed and elite-security cohesion failed to hold the center.';
+    if (result.collapseCause === 'legitimacy') {
+      return 'The population no longer accepted the regime. Mass unrest forced a leadership change.';
+    }
+    if (result.collapseCause === 'control') {
+      return 'Security forces and elite factions abandoned the regime. State control collapsed.';
+    }
+    return 'Faction cohesion failed and the state collapsed under internal pressure.';
   }
   if (result.type === 'victory') {
     return 'Elite alignment and public compliance remained high enough to consolidate long-term control.';
@@ -200,6 +207,32 @@ export function GameOverScreen() {
                     </Panel>
                   </motion.div>
                 ))}
+              </motion.div>
+
+              <motion.div variants={gameOverPanel}>
+                <Panel className="!p-4">
+                  <h3 className={labelSection}>Regime tracks</h3>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <motion.div className={cn(panelInset, 'p-3')} variants={staggerItem}>
+                      <p className={labelMeta}>Legitimacy</p>
+                      <p className="font-display text-2xl font-bold text-board-ink">
+                        <AnimatedNumber value={snapshot.finalLegitimacy} /> / 100
+                      </p>
+                      <span className={cn('mt-2 inline-block rounded border px-2 py-0.5 text-[10px] font-bold uppercase', legitimacyBand(snapshot.finalLegitimacy).badgeClass)}>
+                        {legitimacyBand(snapshot.finalLegitimacy).label}
+                      </span>
+                    </motion.div>
+                    <motion.div className={cn(panelInset, 'p-3')} variants={staggerItem}>
+                      <p className={labelMeta}>Control</p>
+                      <p className="font-display text-2xl font-bold text-board-ink">
+                        <AnimatedNumber value={snapshot.finalControl} /> / 100
+                      </p>
+                      <span className={cn('mt-2 inline-block rounded border px-2 py-0.5 text-[10px] font-bold uppercase', controlBand(snapshot.finalControl).badgeClass)}>
+                        {controlBand(snapshot.finalControl).label}
+                      </span>
+                    </motion.div>
+                  </div>
+                </Panel>
               </motion.div>
 
               <motion.div variants={gameOverPanel}>

@@ -1,0 +1,151 @@
+{
+  "crises": [
+    {
+      "id": "corruption_scandal",
+      "name": "Corruption Scandal",
+      "description": "Leaked documents tie senior officials to offshore accounts. The story spreads faster than censors can contain it.",
+      "severity": "minor",
+      "ongoingEffects": { "legitimacyDelta": -2 },
+      "escalationEffects": { "legitimacyDelta": -10 },
+      "resolution": {
+        "actionCost": 1,
+        "resourceCost": { "influence": 1 },
+        "test": { "attribute": "legitimacy", "difficulty": 50 }
+      },
+      "successEffects": { "legitimacyDelta": 3, "removeCrisis": true },
+      "failureEffects": { "legitimacyDelta": -5 }
+    },
+    {
+      "id": "military_discontent",
+      "name": "Military Discontent",
+      "description": "Officers whisper that the chain of command is fraying. Barracks morale is slipping despite public displays of unity.",
+      "severity": "major",
+      "ongoingEffects": { "controlDelta": -2 },
+      "escalationEffects": { "controlDelta": -12 },
+      "resolution": {
+        "actionCost": 2,
+        "resourceCost": { "money": 1 },
+        "test": { "attribute": "control", "difficulty": 60 }
+      },
+      "successEffects": { "removeCrisis": true },
+      "failureEffects": { "controlDelta": -8 }
+    },
+    {
+      "id": "student_protests",
+      "name": "Student Protests",
+      "description": "University campuses erupt with coordinated demonstrations. Slogans demand accountability and reform.",
+      "severity": "minor",
+      "ongoingEffects": { "legitimacyDelta": -1 },
+      "escalationEffects": { "legitimacyDelta": -6 },
+      "resolution": { "actionCost": 1 },
+      "successEffects": { "legitimacyDelta": 2, "removeCrisis": true },
+      "failureEffects": { "legitimacyDelta": -3 }
+    },
+    {
+      "id": "energy_shortage",
+      "name": "Energy Shortage",
+      "description": "Rolling blackouts and fuel rationing undermine daily life. Ministries blame sabotage; citizens blame incompetence.",
+      "severity": "minor",
+      "ongoingEffects": { "resourceDeltas": { "money": -1 }, "legitimacyDelta": -1 },
+      "escalationEffects": { "legitimacyDelta": -8, "resourceDeltas": { "money": -2 } },
+      "resolution": {
+        "actionCost": 1,
+        "resourceCost": { "money": 2 }
+      },
+      "successEffects": { "removeCrisis": true }
+    },
+    {
+      "id": "elite_defection_rumors",
+      "name": "Elite Defection Rumors",
+      "description": "Trusted donors and party barons are seen meeting without invitation. Loyalty is priced in uncertainty.",
+      "severity": "minor",
+      "ongoingEffects": { "statDeltas": { "elites": { "loyalty": -1 } } },
+      "escalationEffects": { "statDeltas": { "elites": { "loyalty": -2, "fear": 1 } }, "controlDelta": -5 },
+      "resolution": {
+        "actionCost": 1,
+        "resourceCost": { "money": 2 },
+        "test": { "attribute": "control", "difficulty": 45 }
+      },
+      "successEffects": { "statDeltas": { "elites": { "loyalty": 2 } }, "removeCrisis": true },
+      "failureEffects": { "statDeltas": { "elites": { "loyalty": -2 } } }
+    },
+    {
+      "id": "border_skirmish",
+      "name": "Border Skirmish",
+      "description": "Armed clashes on a contested frontier demand a response. Hawks demand retaliation; diplomats warn of escalation.",
+      "severity": "major",
+      "ongoingEffects": { "controlDelta": -1, "resourceDeltas": { "money": -1 } },
+      "escalationEffects": { "controlDelta": -10, "statDeltas": { "security": { "loyalty": -2 } } },
+      "resolution": {
+        "actionCost": 2,
+        "resourceCost": { "money": 2 },
+        "test": { "attribute": "control", "difficulty": 55 }
+      },
+      "successEffects": { "controlDelta": 4, "removeCrisis": true },
+      "failureEffects": { "controlDelta": -6, "statDeltas": { "security": { "fear": 2 } } }
+    },
+    {
+      "id": "media_blackout_failure",
+      "name": "Media Blackout Failure",
+      "description": "A coordinated news blackout collapses when foreign outlets rebroadcast suppressed footage.",
+      "severity": "minor",
+      "ongoingEffects": { "legitimacyDelta": -1, "statDeltas": { "people": { "fear": 1 } } },
+      "escalationEffects": { "legitimacyDelta": -7 },
+      "resolution": {
+        "actionCost": 1,
+        "resourceCost": { "influence": 2 },
+        "test": { "attribute": "legitimacy", "difficulty": 55 }
+      },
+      "successEffects": { "legitimacyDelta": 2, "removeCrisis": true },
+      "failureEffects": { "legitimacyDelta": -4 }
+    },
+    {
+      "id": "prison_riot",
+      "name": "Prison Riot",
+      "description": "Detention centers erupt in coordinated unrest. Families gather outside gates demanding answers.",
+      "severity": "major",
+      "ongoingEffects": { "controlDelta": -2, "statDeltas": { "people": { "satisfaction": -1 } } },
+      "escalationEffects": { "controlDelta": -11, "statDeltas": { "people": { "fear": 2 } } },
+      "resolution": {
+        "actionCost": 2,
+        "resourceCost": { "money": 2 },
+        "test": { "attribute": "control", "difficulty": 65 }
+      },
+      "successEffects": { "removeCrisis": true },
+      "failureEffects": { "controlDelta": -7, "statDeltas": { "security": { "loyalty": -1 } } }
+    },
+    {
+      "id": "food_riot",
+      "name": "Food Riot",
+      "description": "Bread lines turn violent as staple prices spike. Security reports spread faster than relief shipments.",
+      "severity": "major",
+      "ongoingEffects": {
+        "legitimacyDelta": -2,
+        "statDeltas": { "people": { "satisfaction": -1, "loyalty": -1 } }
+      },
+      "escalationEffects": { "legitimacyDelta": -12, "statDeltas": { "people": { "fear": 2 } } },
+      "resolution": {
+        "actionCost": 2,
+        "resourceCost": { "money": 3 },
+        "test": { "attribute": "legitimacy", "difficulty": 60 }
+      },
+      "successEffects": { "legitimacyDelta": 3, "statDeltas": { "people": { "satisfaction": 1 } }, "removeCrisis": true },
+      "failureEffects": { "legitimacyDelta": -6 }
+    },
+    {
+      "id": "foreign_sanctions",
+      "name": "Foreign Sanctions",
+      "description": "Trading partners freeze assets and restrict exports. The economy tightens while propaganda blames external enemies.",
+      "severity": "minor",
+      "ongoingEffects": { "resourceDeltas": { "money": -1, "influence": -1 } },
+      "escalationEffects": { "resourceDeltas": { "money": -3, "influence": -2 }, "legitimacyDelta": -5 },
+      "resolution": {
+        "actionCost": 1,
+        "resourceCost": { "influence": 2, "money": 1 },
+        "test": { "attribute": "legitimacy", "difficulty": 50 }
+      },
+      "successEffects": { "resourceDeltas": { "influence": 1 }, "removeCrisis": true },
+      "failureEffects": { "resourceDeltas": { "money": -2 } }
+    }
+  ]
+}

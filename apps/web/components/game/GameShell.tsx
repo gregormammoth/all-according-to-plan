@@ -2,6 +2,7 @@
 
 import { AudioUnlockBanner } from '@/components/audio/AudioUnlockBanner';
 import { CardBar } from '@/components/game/CardBar';
+import { CrisisModal } from '@/components/game/CrisisModal';
 import { CrisisPanel } from '@/components/game/CrisisPanel';
 import { EventModal } from '@/components/game/EventModal';
 import { GameOverScreen } from '@/components/game/GameOverScreen';
@@ -45,6 +46,7 @@ export function GameShell() {
       <Atmosphere />
       <AudioUnlockBanner />
       <EventModal />
+      <CrisisModal />
       <GameTopBar
         round={round}
         maxRounds={maxRounds}

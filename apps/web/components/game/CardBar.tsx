@@ -29,11 +29,11 @@ export function CardBar() {
   const clearArchiveFlash = useMotionStore((s) => s.clearArchiveFlash);
   const cue = useMotionStore((s) => s.cue);
   const actionsRemaining =
-    state.phase === 'game_over' || state.phase === 'event_modal'
+    state.phase === 'game_over' || state.phase === 'event_modal' || state.phase === 'crisis_modal'
       ? 0
       : Math.max(0, state.maxPlayerActionsPerRound - state.playerActionsUsed);
   const eventModalOpen = state.phase === 'event_modal';
-  const dead = state.phase === 'game_over' || state.phase === 'event_modal' || actionsRemaining <= 0;
+  const dead = state.phase === 'game_over' || state.phase === 'event_modal' || state.phase === 'crisis_modal' || actionsRemaining <= 0;
   const drawCueId = useMotionStore((s) => (s.cue?.type === 'draw' ? s.cue.cardId : null));
 
   const handlePlay = (id: string) => {

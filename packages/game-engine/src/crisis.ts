@@ -15,10 +15,15 @@ import {
   type GameState,
   type GroupKey,
   type PlayerStats,
+  type RegimeDelta,
 } from '@all-according-to-plan/shared';
 import { applyRegimeDeltaToState } from './regime';
 import { deterministicRollPercent } from './rng';
 import type { CrisisLibrary } from './crisis-library';
+
+export type CrisisProgressResult =
+  | { ok: true; state: GameState }
+  | { ok: false; error: string };
 
 export type AppliedEffects = {
   stats: PlayerStats;
@@ -222,17 +227,56 @@ export function canResolveCrisis(
   return { ok: true };
 }
 
-export function resolveCrisis(
+function previewsFromEffectsBundle(bundle?: EffectsBundle): {
+  statChangesPreview: GameState['statChangesPreview'];
+  resourceChangesPreview: GameState['resourceChangesPreview'];
+  regimeChangesPreview: RegimeDelta | null;
+} {
+  if (!bundle) {
+    return { statChangesPreview: null, resourceChangesPreview: null, regimeChangesPreview: null };
+  }
+  const regimeChangesPreview: RegimeDelta = {};
+  if (bundle.legitimacyDelta !== undefined) {
+    regimeChangesPreview.legitimacyDelta = bundle.legitimacyDelta;
+  }
+  if (bundle.controlDelta !== undefined) {
+    regimeChangesPreview.controlDelta = bundle.controlDelta;
+  }
+  return {
+    statChangesPreview: bundle.statDeltas ?? null,
+    resourceChangesPreview: bundle.resourceDeltas ?? null,
+    regimeChangesPreview:
+      regimeChangesPreview.legitimacyDelta !== undefined || regimeChangesPreview.controlDelta !== undefined
+        ? regimeChangesPreview
+        : null,
+  };
+}
+
+function clearCrisisModalFields(state: GameState): GameState {
+  return {
+    ...state,
+    phase: 'player',
+    pendingCrisisId: null,
+    crisisStep: 'idle',
+    crisisDiceResult: null,
+    lastOutcomeSummary: null,
+    statChangesPreview: null,
+    resourceChangesPreview: null,
+    regimeChangesPreview: null,
+  };
+}
+
+function finalizeCrisisResolution(
   state: GameState,
   crisisId: string,
-  library: CrisisLibrary
+  library: CrisisLibrary,
+  success: boolean
 ): { ok: true; state: GameState } | { ok: false; error: string } {
-  const check = canResolveCrisis(state, crisisId, library);
-  if (!check.ok) {
-    return check;
+  const def = library.get(crisisId);
+  if (!def?.resolution) {
+    return { ok: false, error: 'Crisis cannot be resolved.' };
   }
-  const def = library.get(crisisId)!;
-  const { actionCost, resourceCost, test } = def.resolution!;
+  const { actionCost, resourceCost, test } = def.resolution;
   let resources = resourceCost
     ? clampResourcesNonNegative(payCost(state.resources, resourceCost))
     : state.resources;
@@ -242,35 +286,20 @@ export function resolveCrisis(
   const log = [...state.log];
   const nextActions = state.playerActionsUsed + actionCost;
 
-  let success = true;
+  const effects = test ? (success ? def.successEffects : def.failureEffects) : def.successEffects;
+  const applied = applyEffectsBundle(stats, resources, legitimacy, control, effects);
+  stats = applied.stats;
+  resources = applied.resources;
+  legitimacy = applied.legitimacy;
+  control = applied.control;
+
   if (test) {
-    const trackValue = test.attribute === 'legitimacy' ? state.legitimacy : state.control;
-    const result = rollCrisisTest(
-      state.gameSeed,
-      state.round,
-      crisisId,
-      test.attribute,
-      trackValue,
-      test.difficulty
-    );
-    success = result.success;
-    const effects = success ? def.successEffects : def.failureEffects;
-    const applied = applyEffectsBundle(stats, resources, legitimacy, control, effects);
-    stats = applied.stats;
-    resources = applied.resources;
-    legitimacy = applied.legitimacy;
-    control = applied.control;
     if (success) {
       log.push(`${def.name} resolved`);
     } else {
       log.push(`Failed to resolve ${def.name}`);
     }
   } else {
-    const applied = applyEffectsBundle(stats, resources, legitimacy, control, def.successEffects);
-    stats = applied.stats;
-    resources = applied.resources;
-    legitimacy = applied.legitimacy;
-    control = applied.control;
     log.push(`${def.name} resolved`);
   }
 
@@ -281,7 +310,7 @@ export function resolveCrisis(
 
   return {
     ok: true,
-    state: {
+    state: clearCrisisModalFields({
       ...state,
       stats,
       resources,
@@ -293,6 +322,114 @@ export function resolveCrisis(
         ...log,
         `Round ${state.round} action ${nextActions}: resolved crisis ${def.name} (${actionCost} action${actionCost > 1 ? 's' : ''})`,
       ],
+    }),
+  };
+}
+
+export function beginCrisisResolve(
+  state: GameState,
+  crisisId: string,
+  library: CrisisLibrary
+): CrisisProgressResult {
+  const check = canResolveCrisis(state, crisisId, library);
+  if (!check.ok) {
+    return check;
+  }
+  const def = library.get(crisisId)!;
+  const test = def.resolution?.test;
+  if (!test) {
+    return finalizeCrisisResolution(state, crisisId, library, true);
+  }
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phase: 'crisis_modal',
+      pendingCrisisId: crisisId,
+      crisisStep: 'rolling',
+      crisisDiceResult: null,
+      lastOutcomeSummary: null,
+      statChangesPreview: null,
+      resourceChangesPreview: null,
+      regimeChangesPreview: null,
+      log: [...state.log, `Round ${state.round}: resolving ${def.name} — crisis test`],
     },
   };
+}
+
+export function rollPendingCrisis(state: GameState, library: CrisisLibrary): CrisisProgressResult {
+  if (state.phase !== 'crisis_modal' || !state.pendingCrisisId) {
+    return { ok: false, error: 'No crisis is awaiting roll.' };
+  }
+  if (state.crisisStep !== 'rolling') {
+    return { ok: false, error: 'Crisis test can only be rolled during rolling step.' };
+  }
+  if (state.crisisDiceResult) {
+    return { ok: false, error: 'Crisis test already rolled.' };
+  }
+  const crisisId = state.pendingCrisisId;
+  const def = library.get(crisisId);
+  const test = def?.resolution?.test;
+  if (!def || !test) {
+    return { ok: false, error: 'Crisis has no test to roll.' };
+  }
+  const trackValue = test.attribute === 'legitimacy' ? state.legitimacy : state.control;
+  const result = rollCrisisTest(
+    state.gameSeed,
+    state.round,
+    crisisId,
+    test.attribute,
+    trackValue,
+    test.difficulty
+  );
+  const effects = result.success ? def.successEffects : def.failureEffects;
+  const previews = previewsFromEffectsBundle(effects);
+  return {
+    ok: true,
+    state: {
+      ...state,
+      crisisDiceResult: {
+        roll: result.roll,
+        chance: result.chance,
+        success: result.success,
+        attribute: test.attribute,
+      },
+      crisisStep: 'revealed',
+      lastOutcomeSummary: result.success ? `${def.name} resolved` : `Failed to resolve ${def.name}`,
+      ...previews,
+      log: [
+        ...state.log,
+        `Round ${state.round}: crisis test ${result.roll} vs ${result.chance}% → ${result.success ? 'success' : 'failure'}`,
+      ],
+    },
+  };
+}
+
+export function applyCrisisOutcome(state: GameState, library: CrisisLibrary): CrisisProgressResult {
+  if (state.phase !== 'crisis_modal' || !state.pendingCrisisId) {
+    return { ok: false, error: 'No crisis outcome to apply.' };
+  }
+  if (state.crisisStep !== 'revealed' || !state.crisisDiceResult) {
+    return { ok: false, error: 'Crisis outcome can only be applied after reveal.' };
+  }
+  return finalizeCrisisResolution(state, state.pendingCrisisId, library, state.crisisDiceResult.success);
+}
+
+export function resolveCrisis(
+  state: GameState,
+  crisisId: string,
+  library: CrisisLibrary
+): { ok: true; state: GameState } | { ok: false; error: string } {
+  const begun = beginCrisisResolve(state, crisisId, library);
+  if (!begun.ok) {
+    return begun;
+  }
+  if (begun.state.phase !== 'crisis_modal') {
+    return begun;
+  }
+  const rolled = rollPendingCrisis(begun.state, library);
+  if (!rolled.ok) {
+    return rolled;
+  }
+  return applyCrisisOutcome(rolled.state, library);
 }

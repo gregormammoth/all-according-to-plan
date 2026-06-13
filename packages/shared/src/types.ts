@@ -153,7 +153,16 @@ export type DiceResult = {
 
 export type EventStep = 'idle' | 'choice' | 'rolling' | 'revealed' | 'applied';
 
-export type GamePhase = 'player' | 'event_modal' | 'game_over';
+export type CrisisStep = 'idle' | 'rolling' | 'revealed';
+
+export type CrisisDiceResult = {
+  roll: number;
+  chance: number;
+  success: boolean;
+  attribute: CrisisTestAttribute;
+};
+
+export type GamePhase = 'player' | 'crisis_modal' | 'event_modal' | 'game_over';
 
 export type ScheduledEffect = {
   firesAtRound: number;
@@ -191,6 +200,9 @@ export type GameState = {
   pendingChoiceId: string | null;
   diceResult: DiceResult | null;
   eventStep: EventStep;
+  pendingCrisisId: string | null;
+  crisisStep: CrisisStep;
+  crisisDiceResult: CrisisDiceResult | null;
   lastOutcomeSummary: string | null;
   statChangesPreview: Outcome['statDeltas'] | null;
   resourceChangesPreview: Outcome['resourceDeltas'] | null;

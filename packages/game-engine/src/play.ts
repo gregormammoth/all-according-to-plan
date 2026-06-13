@@ -11,7 +11,7 @@ import {
 } from '@all-according-to-plan/shared';
 import type { CardLibrary } from './library';
 import type { CrisisLibrary } from './crisis-library';
-import { resolveCrisis as resolveCrisisEngine } from './crisis';
+import { applyCrisisOutcome, beginCrisisResolve, rollPendingCrisis, resolveCrisis as resolveCrisisEngine } from './crisis';
 import { drawOneCard } from './deck';
 import { applyRegimeDeltaToState } from './regime';
 import { beginEventModal } from './round';
@@ -183,6 +183,44 @@ export function gainResource(_library: CardLibrary, state: GameState, resource: 
     log,
   };
   nextState = afterPlayerAction(nextState);
+  return { ok: true, state: nextState };
+}
+
+export function startCrisisResolve(
+  _cardLibrary: CardLibrary,
+  crisisLibrary: CrisisLibrary,
+  state: GameState,
+  crisisId: string
+): PlayResult {
+  const res = beginCrisisResolve(state, crisisId, crisisLibrary);
+  if (!res.ok) {
+    return res;
+  }
+  if (res.state.phase === 'crisis_modal') {
+    return { ok: true, state: res.state };
+  }
+  const nextState = afterPlayerAction(res.state);
+  return { ok: true, state: nextState };
+}
+
+export function rollCrisisTestAction(crisisLibrary: CrisisLibrary, state: GameState): PlayResult {
+  const res = rollPendingCrisis(state, crisisLibrary);
+  if (!res.ok) {
+    return res;
+  }
+  return { ok: true, state: res.state };
+}
+
+export function applyCrisisResolution(
+  _cardLibrary: CardLibrary,
+  crisisLibrary: CrisisLibrary,
+  state: GameState
+): PlayResult {
+  const res = applyCrisisOutcome(state, crisisLibrary);
+  if (!res.ok) {
+    return res;
+  }
+  const nextState = afterPlayerAction(res.state);
   return { ok: true, state: nextState };
 }
 

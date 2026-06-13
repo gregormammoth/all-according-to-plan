@@ -10,7 +10,7 @@ const crisisById = new Map(crisesDocument.crises.map((c) => [c.id, c]));
 export function CrisisPanel() {
   const state = useGameStore((s) => s.state);
   const crisisLibrary = useGameStore((s) => s.crisisLibrary);
-  const resolveCrisis = useGameStore((s) => s.resolveCrisis);
+  const startCrisisResolve = useGameStore((s) => s.startCrisisResolve);
   const phase = state.phase;
   const active = state.activeCrises;
 
@@ -25,6 +25,8 @@ export function CrisisPanel() {
       <div className="panel-section-scroll mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {phase === 'event_modal' ? (
           <p className="panel-notice">State directive pending — complete modal to continue.</p>
+        ) : phase === 'crisis_modal' ? (
+          <p className="panel-notice">Crisis test in progress — complete modal to continue.</p>
         ) : active.length === 0 ? (
           <div className="panel-empty">
             <p className="panel-empty-title">No active crises</p>
@@ -44,7 +46,7 @@ export function CrisisPanel() {
                 currentRound={state.round}
                 canResolve={phase === 'player' && check.ok}
                 resolveError={!check.ok ? check.error : undefined}
-                onResolve={() => resolveCrisis(item.crisisId)}
+                onResolve={() => startCrisisResolve(item.crisisId)}
               />
             );
           })

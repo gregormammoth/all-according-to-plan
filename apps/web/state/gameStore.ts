@@ -1,4 +1,5 @@
 import {
+  applyCrisisResolution,
   applyRevealedOutcome,
   beginEventModal,
   chooseEventChoice,
@@ -9,8 +10,9 @@ import {
   getDefaultCrisisLibrary,
   getDefaultLibrary,
   playCard,
-  resolveCrisis,
+  rollCrisisTestAction,
   rollPendingEvent,
+  startCrisisResolve,
   type CardLibrary,
   type CrisisLibrary,
 } from '@all-according-to-plan/game-engine';
@@ -29,6 +31,18 @@ type EventModalState = {
   event: GameEvent | null;
 };
 
+type CrisisModalState = {
+  isOpen: boolean;
+  crisisId: string | null;
+};
+
+function crisisModalFromGameState(state: GameState): CrisisModalState {
+  if (state.phase === 'crisis_modal' && state.pendingCrisisId) {
+    return { isOpen: true, crisisId: state.pendingCrisisId };
+  }
+  return { isOpen: false, crisisId: null };
+}
+
 function eventModalFromGameState(state: GameState): EventModalState {
   if (state.phase === 'event_modal' && state.pendingEvent) {
     return { isOpen: true, event: state.pendingEvent };
@@ -40,6 +54,7 @@ function afterPlayerPhaseTransition(state: GameState) {
   return {
     state,
     eventModal: eventModalFromGameState(state),
+    crisisModal: crisisModalFromGameState(state),
   };
 }
 
@@ -49,11 +64,14 @@ type GameStore = {
   crisisLibrary: CrisisLibrary;
   error: string | null;
   eventModal: EventModalState;
+  crisisModal: CrisisModalState;
   roundSnapshot: RoundSnapshot | null;
   play: (cardId: string) => void;
   draw: () => void;
   gain: (resource: ResourceType) => void;
-  resolveCrisis: (crisisId: string) => void;
+  startCrisisResolve: (crisisId: string) => void;
+  rollCrisisTest: () => void;
+  applyCrisisOutcome: () => void;
   endTurn: () => void;
   selectEventChoice: (choiceId: string) => void;
   rollEvent: () => void;
@@ -64,6 +82,7 @@ type GameStore = {
 };
 
 const initialModal: EventModalState = { isOpen: false, event: null };
+const initialCrisisModal: CrisisModalState = { isOpen: false, crisisId: null };
 const initialState = createInitialState();
 const initialSnapshot = captureRoundSnapshot(initialState);
 
@@ -73,6 +92,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   crisisLibrary: getDefaultCrisisLibrary(),
   error: null,
   eventModal: initialModal,
+  crisisModal: initialCrisisModal,
   roundSnapshot: initialSnapshot,
   play: (cardId) => {
     const res = playCard(get().library, get().state, cardId);
@@ -107,8 +127,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
       error: null,
     });
   },
-  resolveCrisis: (crisisId) => {
-    const res = resolveCrisis(get().library, get().crisisLibrary, get().state, crisisId);
+  startCrisisResolve: (crisisId) => {
+    const res = startCrisisResolve(get().library, get().crisisLibrary, get().state, crisisId);
+    if (!res.ok) {
+      set({ error: res.error });
+      return;
+    }
+    set({
+      ...afterPlayerPhaseTransition(res.state),
+      error: null,
+    });
+  },
+  rollCrisisTest: () => {
+    const res = rollCrisisTestAction(get().crisisLibrary, get().state);
+    if (!res.ok) {
+      set({ error: res.error });
+      return;
+    }
+    set({
+      state: res.state,
+      crisisModal: crisisModalFromGameState(res.state),
+      error: null,
+    });
+  },
+  applyCrisisOutcome: () => {
+    const res = applyCrisisResolution(get().library, get().crisisLibrary, get().state);
     if (!res.ok) {
       set({ error: res.error });
       return;
@@ -186,6 +229,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state: res.state,
       error: null,
       eventModal: eventModalFromGameState(res.state),
+      crisisModal: crisisModalFromGameState(res.state),
       roundSnapshot: nextSnapshot,
     });
   },
@@ -203,6 +247,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state: applyRoundSnapshot(state, roundSnapshot),
       error: null,
       eventModal: initialModal,
+      crisisModal: initialCrisisModal,
     });
   },
   reset: () => {
@@ -211,6 +256,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state,
       error: null,
       eventModal: initialModal,
+      crisisModal: initialCrisisModal,
       roundSnapshot: captureRoundSnapshot(state),
     });
     if (getAudioManager().isUnlocked()) {

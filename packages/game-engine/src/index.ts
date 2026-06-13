@@ -1,9 +1,11 @@
 export {
-  applyEffectsBundle,
+  applyCrisisOutcome,
+  beginCrisisResolve,
   canResolveCrisis,
   crisisTestSuccessChance,
   processEndOfRoundCrises,
   rollCrisisTest,
+  rollPendingCrisis,
   spawnRandomCrisis,
 } from './crisis';
 export * from './crisis-library';

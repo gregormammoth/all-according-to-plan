@@ -47,7 +47,7 @@ export const HandDirectiveCard = memo(function HandDirectiveCard({
         reduced || disabled
           ? undefined
           : {
-              y: -6,
+              y: -10,
               rotateX: 2,
               rotateZ: isAsset ? -0.5 : 0.5,
               transition: transitions.hover,

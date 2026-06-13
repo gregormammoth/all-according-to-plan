@@ -9,7 +9,7 @@
       "escalationEffects": { "legitimacyDelta": -10 },
       "resolution": {
         "actionCost": 1,
-        "resourceCost": { "influence": 1 },
+        "resourceCost": { "money": 1 },
         "test": { "attribute": "legitimacy", "difficulty": 50 }
       },
       "successEffects": { "legitimacyDelta": 3, "removeCrisis": true },
@@ -93,7 +93,7 @@
       "escalationEffects": { "legitimacyDelta": -7 },
       "resolution": {
         "actionCost": 1,
-        "resourceCost": { "influence": 2 },
+        "resourceCost": { "money": 2 },
         "test": { "attribute": "legitimacy", "difficulty": 55 }
       },
       "successEffects": { "legitimacyDelta": 2, "removeCrisis": true },
@@ -137,14 +137,14 @@
       "name": "Foreign Sanctions",
       "description": "Trading partners freeze assets and restrict exports. The economy tightens while propaganda blames external enemies.",
       "severity": "minor",
-      "ongoingEffects": { "resourceDeltas": { "money": -1, "influence": -1 } },
-      "escalationEffects": { "resourceDeltas": { "money": -3, "influence": -2 }, "legitimacyDelta": -5 },
+      "ongoingEffects": { "resourceDeltas": { "money": -2 } },
+      "escalationEffects": { "resourceDeltas": { "money": -5 }, "legitimacyDelta": -5 },
       "resolution": {
         "actionCost": 1,
-        "resourceCost": { "influence": 2, "money": 1 },
+        "resourceCost": { "money": 3 },
         "test": { "attribute": "legitimacy", "difficulty": 50 }
       },
-      "successEffects": { "resourceDeltas": { "influence": 1 }, "removeCrisis": true },
+      "successEffects": { "resourceDeltas": { "money": 1 }, "removeCrisis": true },
       "failureEffects": { "resourceDeltas": { "money": -2 } }
     }
   ]

@@ -1,5 +1,6 @@
 import {
   applyRevealedOutcome,
+  beginEventModal,
   chooseEventChoice,
   continueAfterAppliedEvent,
   createInitialState,
@@ -53,6 +54,7 @@ type GameStore = {
   draw: () => void;
   gain: (resource: ResourceType) => void;
   resolveCrisis: (crisisId: string) => void;
+  endTurn: () => void;
   selectEventChoice: (choiceId: string) => void;
   rollEvent: () => void;
   applyEventOutcome: () => void;
@@ -113,6 +115,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     set({
       ...afterPlayerPhaseTransition(res.state),
+      error: null,
+    });
+  },
+  endTurn: () => {
+    const current = get().state;
+    if (current.phase !== 'player') {
+      set({ error: 'Cannot end turn outside operations phase.' });
+      return;
+    }
+    if (current.playerActionsUsed === 0) {
+      set({ error: 'Take at least one action before ending the turn.' });
+      return;
+    }
+    const primed =
+      current.playerActionsUsed >= current.maxPlayerActionsPerRound
+        ? current
+        : { ...current, playerActionsUsed: current.maxPlayerActionsPerRound };
+    const next = beginEventModal(primed);
+    set({
+      ...afterPlayerPhaseTransition(next),
       error: null,
     });
   },

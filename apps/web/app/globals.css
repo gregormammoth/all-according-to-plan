@@ -214,113 +214,147 @@
     @apply rounded border border-state-amber/30 bg-state-amber/5 px-2 py-2 text-[11px] text-state-amber;
   }
 
-  .program-row-card {
-    @apply flex items-stretch gap-2 rounded border border-state-brass/35 bg-card-asset p-2 shadow-card;
+  .panel-card {
+    @apply flex flex-col overflow-hidden rounded-md border border-state-steel/40 bg-state-graphite/30 shadow-card;
   }
 
-  .program-row-thumb {
-    @apply h-14 w-14 shrink-0 overflow-hidden rounded border border-state-steel/30;
+  .panel-card-gold {
+    @apply border-state-brass/40 bg-card-asset;
   }
 
-  .program-row-body {
-    @apply min-w-0 flex-1 py-0.5;
+  .panel-card-danger {
+    @apply border-faction-danger/35 bg-card-event;
   }
 
-  .program-row-title {
-    @apply font-display text-[11px] font-bold uppercase leading-tight text-board-ink;
-  }
-
-  .program-row-category {
-    @apply mt-0.5 font-display text-[9px] uppercase tracking-label text-state-gold;
-  }
-
-  .program-row-effects {
-    @apply mt-1 text-[10px] leading-snug text-state-paper-dim line-clamp-2;
-  }
-
-  .program-row-duration {
-    @apply flex w-10 shrink-0 flex-col items-center justify-center border-l border-state-steel/25 pl-2 text-center;
-  }
-
-  .program-row-duration-num {
-    @apply font-display text-lg font-bold text-state-brass;
-  }
-
-  .program-row-duration-label {
-    @apply font-display text-[7px] font-bold uppercase tracking-label text-state-paper-dim;
-  }
-
-  .crisis-row-card {
-    @apply flex items-stretch gap-2 rounded border border-faction-danger/35 bg-card-event p-2 shadow-card;
-  }
-
-  .crisis-row-card-major {
+  .panel-card-major {
     @apply border-faction-danger/55;
   }
 
-  .crisis-row-card-critical {
+  .panel-card-critical {
     @apply border-faction-danger/70 bg-faction-danger/[0.07];
     animation: crisisPulse 2.8s ease-in-out infinite;
   }
 
-  .crisis-row-thumb {
-    @apply flex h-14 w-14 shrink-0 items-center justify-center rounded border;
+  .panel-card-art {
+    @apply relative aspect-[4/3] w-full shrink-0 overflow-hidden border-b border-state-steel/30;
   }
 
-  .crisis-row-thumb-minor {
-    @apply border-state-amber/35 bg-state-amber/10;
+  .panel-card-art-media {
+    @apply relative h-full w-full;
   }
 
-  .crisis-row-thumb-major {
-    @apply border-faction-danger/45 bg-faction-danger/15;
+  .panel-card-art-badge {
+    @apply pointer-events-none absolute z-[2] flex flex-col items-center justify-center rounded border bg-state-charcoal/85 font-display shadow-card;
   }
 
-  .crisis-row-thumb-glyph {
-    @apply font-display text-xl font-bold text-faction-danger;
+  .panel-card-art-badge-cost {
+    @apply left-2 top-2 h-8 w-8 border-2 border-state-amber/60 text-sm font-bold text-state-amber;
   }
 
-  .crisis-row-body {
-    @apply min-w-0 flex-1 py-0.5;
+  .panel-card-art-badge-danger {
+    @apply right-2 top-2 min-w-[2.25rem] border border-faction-danger/40 px-1.5 py-1;
   }
 
-  .crisis-row-title {
+  .panel-card-art-badge-num {
+    @apply text-base font-bold leading-none text-state-amber;
+  }
+
+  .panel-card-art-badge-label {
+    @apply mt-0.5 text-[7px] font-bold uppercase tracking-label text-state-paper-dim;
+  }
+
+  .panel-card-body {
+    @apply flex flex-1 flex-col gap-1 p-2.5;
+  }
+
+  .panel-card-title {
     @apply font-display text-[11px] font-bold uppercase leading-tight text-board-ink;
   }
 
-  .crisis-row-type {
-    @apply mt-0.5 font-display text-[9px] uppercase tracking-label text-faction-danger/90;
+  .panel-card-subtitle {
+    @apply font-display text-[9px] uppercase tracking-label text-state-gold;
   }
 
-  .crisis-row-kicker {
-    @apply font-semibold text-state-paper-dim;
+  .panel-card-danger .panel-card-subtitle {
+    @apply text-faction-danger/90;
   }
 
-  .crisis-row-ongoing {
-    @apply mt-1 text-[10px] text-faction-danger line-clamp-2;
+  .panel-card-desc {
+    @apply text-[10px] leading-snug text-state-paper-dim line-clamp-4;
   }
 
-  .crisis-row-resolve {
-    @apply text-[10px] text-state-paper-dim;
+  .panel-card-footer {
+    @apply mt-2 pt-2 border-t border-state-steel/25;
   }
 
-  .crisis-row-resolve-btn {
-    @apply mt-1 rounded border border-state-steel/50 bg-state-graphite/60 px-2 py-0.5 font-display text-[9px] font-bold uppercase tracking-label text-board-ink transition-colors hover:border-state-amber/40 disabled:cursor-not-allowed disabled:opacity-40;
+  .panel-card-action-btn {
+    @apply w-full rounded border border-state-steel/50 bg-state-graphite/60 px-2 py-1.5 font-display text-[9px] font-bold uppercase tracking-label text-board-ink transition-colors hover:border-state-amber/40 disabled:cursor-not-allowed disabled:opacity-40;
   }
 
-  .crisis-row-timer {
-    @apply flex w-11 shrink-0 flex-col items-center justify-center border-l border-faction-danger/25 pl-2 text-center;
+  .panel-card-compact .panel-card-art {
+    @apply aspect-[3/2];
   }
 
-  .crisis-row-timer-num {
-    @apply font-display text-lg font-bold text-state-amber;
+  .panel-card-compact .panel-card-body {
+    @apply gap-0.5 p-1.5;
   }
 
-  .crisis-row-timer-label {
-    @apply font-display text-[7px] font-bold uppercase tracking-label text-state-paper-dim;
+  .panel-card-compact .panel-card-title {
+    @apply text-[9px] leading-tight;
   }
 
-  .crisis-row-timer-sub {
-    @apply mt-0.5 text-[8px] text-state-fog;
+  .panel-card-compact .panel-card-subtitle {
+    @apply text-[8px];
+  }
+
+  .panel-card-compact .panel-card-desc {
+    @apply text-[9px] line-clamp-2;
+  }
+
+  .panel-card-compact .panel-card-footer {
+    @apply mt-1 border-t border-state-steel/20 pt-1.5;
+  }
+
+  .panel-card-compact .panel-card-action-btn {
+    @apply py-0.5 text-[8px];
+  }
+
+  .panel-card-compact .panel-card-art-badge-cost {
+    @apply h-6 w-6 border text-[10px];
+  }
+
+  .panel-card-compact .panel-card-art-badge-danger {
+    @apply min-w-[1.75rem] px-1 py-0.5;
+  }
+
+  .panel-card-compact .panel-card-art-badge-num {
+    @apply text-sm;
+  }
+
+  .panel-card-compact .panel-card-art-badge-label {
+    @apply text-[6px];
+  }
+
+  .panel-card-grid {
+    @apply grid grid-cols-2 gap-2 content-start;
+  }
+
+  @screen xl {
+    .panel-card-grid {
+      @apply grid-cols-3;
+    }
+  }
+
+  .panel-card-grid-span {
+    @apply col-span-full;
+  }
+
+  .panel-card-hand {
+    @apply overflow-hidden border-state-brass/45 bg-[linear-gradient(180deg,#2a2824_0%,#141618_100%)];
+  }
+
+  .panel-card-hand .panel-card-title {
+    @apply text-xs;
   }
 
   .situation-board-iron {
@@ -328,7 +362,7 @@
   }
 
   .situation-hero {
-    @apply relative h-[7.5rem] shrink-0 overflow-hidden border-b border-state-steel/35 md:h-[9rem];
+    @apply relative h-[6rem] shrink-0 overflow-hidden border-b border-state-steel/35 md:h-[7rem];
   }
 
   .situation-hero-sky {
@@ -434,46 +468,6 @@
     @apply mt-3 border-t border-state-steel/25 pt-2 text-[10px] text-state-paper-dim;
   }
 
-  .hand-directive-lcg {
-    @apply overflow-hidden border-state-brass/45 bg-[linear-gradient(180deg,#2a2824_0%,#141618_100%)];
-  }
-
-  .hand-directive-art-wrap {
-    @apply relative h-[9.5rem] overflow-hidden border-b border-state-steel/30;
-  }
-
-  .hand-directive-art {
-    @apply h-full w-full !aspect-auto;
-  }
-
-  .hand-directive-cost {
-    @apply absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-state-amber/60 bg-state-charcoal/90 font-display text-sm font-bold text-state-amber shadow-btn;
-  }
-
-  .hand-directive-body {
-    @apply flex flex-1 flex-col px-2.5 pb-2 pt-2;
-  }
-
-  .hand-directive-title {
-    @apply font-display text-[11px] font-bold uppercase leading-tight tracking-tight text-board-ink;
-  }
-
-  .hand-directive-type {
-    @apply mt-0.5 font-display text-[9px] uppercase tracking-label text-state-gold;
-  }
-
-  .hand-directive-desc {
-    @apply mt-1.5 flex-1 text-[10px] leading-snug text-state-paper-dim line-clamp-4;
-  }
-
-  .hand-directive-foot {
-    @apply mt-2 flex justify-center border-t border-state-steel/25 pt-2;
-  }
-
-  .hand-directive-icon {
-    @apply text-lg text-state-brass;
-  }
-
   .game-footer-bar {
     @apply mt-1 flex shrink-0 items-center justify-between gap-3 border-t border-state-steel/30 pt-2;
   }
@@ -542,7 +536,7 @@
   }
 
   .game-stage {
-    @apply relative z-[2] grid min-h-0 flex-1 grid-cols-1 gap-0 lg:grid-cols-[minmax(0,25%)_minmax(0,50%)_minmax(0,25%)];
+    @apply relative z-[2] grid min-h-0 flex-1 grid-cols-1 gap-0 lg:grid-cols-[minmax(0,34%)_minmax(0,32%)_minmax(0,34%)];
   }
 
   .game-stage-side {
@@ -568,7 +562,7 @@
   }
 
   .player-hand-cards {
-    @apply relative min-h-[18.5rem] flex-1 overflow-visible;
+    @apply relative min-h-[17rem] flex-1 overflow-visible;
   }
 
   .player-hand-toolbar {
@@ -580,7 +574,7 @@
   }
 
   .player-hand-strip {
-    @apply min-h-[18rem] items-end overflow-x-auto overflow-y-visible py-2;
+    @apply min-h-[17rem] items-end overflow-x-auto overflow-y-visible py-2;
   }
 
   .hand-scroll-btn {

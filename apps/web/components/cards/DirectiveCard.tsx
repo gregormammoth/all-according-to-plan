@@ -5,7 +5,7 @@ import type { Card } from '@all-according-to-plan/shared';
 import { CardArtwork } from '@/components/cards/CardArtwork';
 import { CardCostRow } from '@/components/cards/CardCostRow';
 import { FactionInfluenceStrip } from '@/components/cards/FactionInfluenceStrip';
-import { getCardDisplayCost, getDirectiveActionType, getDirectiveIcon } from '@/lib/cards/icons';
+import { getCardDisplayCost, getDirectiveActionType } from '@/lib/cards/icons';
 import {
   getArchetypeLabel,
   getDirectiveClassLabel,
@@ -41,30 +41,24 @@ export const DirectiveCard = memo(function DirectiveCard({
   const hint = getDirectiveFooterHint(card, disabled);
   const displayCost = getCardDisplayCost(card.cost);
   const actionType = getDirectiveActionType(card);
-  const icon = getDirectiveIcon(card);
 
   if (isHand) {
     return (
       <article
         className={cn(
           directiveCardShell(card, { variant, disabled, interactive }),
-          'hand-directive-lcg',
+          'hand-directive-lcg panel-card-hand',
           className
         )}
       >
-        <div className="hand-directive-art-wrap">
-          <CardArtwork card={card} className="hand-directive-art" />
-          <span className="hand-directive-cost">{displayCost > 0 ? displayCost : '—'}</span>
+        <div className="panel-card-art">
+          <CardArtwork card={card} variant="panel" />
+          <span className="panel-card-art-badge panel-card-art-badge-cost">{displayCost > 0 ? displayCost : '—'}</span>
         </div>
-        <div className="hand-directive-body">
-          <h4 className="hand-directive-title">{card.name}</h4>
-          <p className="hand-directive-type">{actionType}</p>
-          <p className="hand-directive-desc">{card.description}</p>
-          <div className="hand-directive-foot">
-            <span className="hand-directive-icon" aria-hidden>
-              {icon}
-            </span>
-          </div>
+        <div className="panel-card-body">
+          <h4 className="panel-card-title">{card.name}</h4>
+          <p className="panel-card-subtitle">{actionType}</p>
+          <p className="panel-card-desc">{card.description}</p>
         </div>
       </article>
     );

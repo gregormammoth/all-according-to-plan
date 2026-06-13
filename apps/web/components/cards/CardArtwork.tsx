@@ -10,18 +10,25 @@ type CardArtworkProps = {
   card: Card;
   className?: string;
   priority?: boolean;
+  variant?: 'default' | 'panel';
 };
 
-export const CardArtwork = memo(function CardArtwork({ card, className, priority }: CardArtworkProps) {
+export const CardArtwork = memo(function CardArtwork({
+  card,
+  className,
+  priority,
+  variant = 'default',
+}: CardArtworkProps) {
   const theme = getCardArtTheme(card);
   const [failed, setFailed] = useState(false);
   const src = getCardArtSrc(theme);
+  const isPanel = variant === 'panel';
 
   return (
     <div
       className={cn(
-        'directive-card-art relative aspect-[16/10] w-full overflow-hidden',
-        'bg-gradient-to-b',
+        'relative w-full overflow-hidden bg-gradient-to-b',
+        isPanel ? 'panel-card-art-media h-full' : 'directive-card-art aspect-[16/10]',
         CARD_ART_GRADIENT[theme],
         className
       )}
@@ -38,23 +45,27 @@ export const CardArtwork = memo(function CardArtwork({ card, className, priority
         />
       ) : null}
       <div
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_35%,rgba(12,13,14,0.92)_100%)]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgba(12,13,14,0.88)_100%)]"
         aria-hidden
       />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-overlay"
-        style={{
-          backgroundImage:
-            'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
-        }}
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute left-2 top-2 rounded border border-state-paper/10 bg-state-charcoal/60 px-1.5 py-0.5 font-display text-[8px] font-bold uppercase tracking-[0.2em] text-state-paper-dim"
-        aria-hidden
-      >
-        Classified
-      </div>
+      {!isPanel ? (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-overlay"
+            style={{
+              backgroundImage:
+                'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
+            }}
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute left-2 top-2 rounded border border-state-paper/10 bg-state-charcoal/60 px-1.5 py-0.5 font-display text-[8px] font-bold uppercase tracking-[0.2em] text-state-paper-dim"
+            aria-hidden
+          >
+            Classified
+          </div>
+        </>
+      ) : null}
     </div>
   );
 });

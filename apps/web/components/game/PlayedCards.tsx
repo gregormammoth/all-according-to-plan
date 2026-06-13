@@ -30,9 +30,9 @@ export function PlayedCards() {
         </h2>
       </header>
 
-      <div className="panel-section-scroll mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="panel-section-scroll panel-card-grid mt-2 min-h-0 flex-1 overflow-y-auto pr-1">
         {activeAssets.length === 0 ? (
-          <div className="panel-empty panel-empty-gold">
+          <div className="panel-empty panel-empty-gold panel-card-grid-span">
             <p className="panel-empty-title">No programs enacted</p>
             <p className="panel-empty-sub">Play asset directives from your hand to establish permanent policy.</p>
           </div>
@@ -41,6 +41,7 @@ export function PlayedCards() {
             {activeAssets.map((card) => (
               <motion.div
                 key={card.id}
+                className="min-w-0"
                 variants={activeDirectiveEnter}
                 initial={playCue === card.id && !reduced ? 'hidden' : false}
                 animate="visible"

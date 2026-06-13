@@ -19,7 +19,7 @@ export function directiveCardShell(
     'directive-card group relative flex flex-col overflow-hidden text-left',
     'transform-gpu will-change-transform',
     variant === 'hand' &&
-      'min-h-[18rem] w-[11.5rem] min-w-[11.5rem] max-w-[11.5rem] shrink-0 snap-center rounded-md border-2 shadow-card',
+      'min-h-[17rem] w-[11.5rem] min-w-[11.5rem] max-w-[11.5rem] shrink-0 snap-center rounded-md border-2 shadow-card',
     variant === 'active' && 'rounded-md border shadow-card',
     variant === 'archive' && 'rounded border',
     isAsset && 'border-state-brass/40 bg-card-asset',

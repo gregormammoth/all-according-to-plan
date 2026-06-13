@@ -22,13 +22,13 @@ export function CrisisPanel() {
         </h2>
       </header>
 
-      <div className="panel-section-scroll mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="panel-section-scroll panel-card-grid mt-2 min-h-0 flex-1 overflow-y-auto pr-1">
         {phase === 'event_modal' ? (
-          <p className="panel-notice">State directive pending — complete modal to continue.</p>
+          <p className="panel-notice panel-card-grid-span">State directive pending — complete modal to continue.</p>
         ) : phase === 'crisis_modal' ? (
-          <p className="panel-notice">Crisis test in progress — complete modal to continue.</p>
+          <p className="panel-notice panel-card-grid-span">Crisis test in progress — complete modal to continue.</p>
         ) : active.length === 0 ? (
-          <div className="panel-empty">
+          <div className="panel-empty panel-card-grid-span">
             <p className="panel-empty-title">No active crises</p>
             <p className="panel-empty-sub">Threats will surface as the campaign progresses.</p>
           </div>
@@ -38,16 +38,15 @@ export function CrisisPanel() {
             if (!def) return null;
             const check = canResolveCrisis(state, item.crisisId, crisisLibrary);
             return (
-              <CrisisRowCard
-                key={`${item.crisisId}-${item.createdRound}`}
-                def={def}
-                doom={item.doom}
-                createdRound={item.createdRound}
-                currentRound={state.round}
-                canResolve={phase === 'player' && check.ok}
-                resolveError={!check.ok ? check.error : undefined}
-                onResolve={() => startCrisisResolve(item.crisisId)}
-              />
+              <div key={`${item.crisisId}-${item.createdRound}`} className="min-w-0">
+                <CrisisRowCard
+                  def={def}
+                  doom={item.doom}
+                  canResolve={phase === 'player' && check.ok}
+                  resolveError={!check.ok ? check.error : undefined}
+                  onResolve={() => startCrisisResolve(item.crisisId)}
+                />
+              </div>
             );
           })
         )}

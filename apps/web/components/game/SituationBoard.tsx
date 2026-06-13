@@ -53,12 +53,12 @@ export function SituationBoard({ stats }: { stats: PlayerStats }) {
 
   return (
     <div className="situation-board-iron">
-      <div className="situation-hero">
+      {/* <div className="situation-hero">
         <div className="situation-hero-sky" />
         <div className="situation-hero-building" aria-hidden />
         <div className="situation-hero-vignette" />
         <p className="situation-hero-caption">Ministry of Internal Order · Capital District</p>
-      </div>
+      </div> */}
 
       <div className="situation-gauges">
         <div className="situation-gauge-block">

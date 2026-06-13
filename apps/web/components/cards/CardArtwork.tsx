@@ -32,7 +32,7 @@ export const CardArtwork = memo(function CardArtwork({ card, className, priority
           alt=""
           fill
           sizes="(max-width: 768px) 200px, 240px"
-          className="object-cover object-center opacity-75 mix-blend-luminosity contrast-[1.08] saturate-[0.65] transition-[opacity,filter] duration-200 ease-out group-hover:opacity-90 group-hover:contrast-[1.12] group-[.directive-card-disabled]:opacity-40"
+          className="object-cover object-center opacity-90 contrast-[1.05] saturate-[0.85] transition-[opacity,filter] duration-200 ease-out group-hover:opacity-100 group-hover:contrast-[1.1] group-hover:saturate-100 group-[.directive-card-disabled]:opacity-40"
           priority={priority}
           onError={() => setFailed(true)}
         />
